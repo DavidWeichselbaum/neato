@@ -42,23 +42,51 @@ class NEATNetwork:
     def __init__(self, nodes, connections):
         self.nodes = nodes
         self.connections = connections
-
-        self.node_map = {n.id: n for n in nodes}
         self.node_ids = [n.id for n in nodes]
-        self.input_ids = [n.id for n in nodes if n.is_input]
-        self.output_ids = [n.id for n in nodes if n.is_output]
 
-        self.node_index = {nid: i for i, nid in enumerate(self.node_ids)}
+        if self.detect_cycles(self.connections, self.node_ids):
+            raise Exception("Network is not a directed acyclic graph")
+
+        # for activation
         self.exec_order, self.layer_order = self.topo_sort()
         self.id_to_layer = {nid: layer_idx for layer_idx, layer in enumerate(self.layer_order) for nid in layer}
-        print(self.id_to_layer)
-
+        self.node_index = {nid: i for i, nid in enumerate(self.node_ids)}
         self.conn_in = np.array([self.node_index[c.in_node] for c in self.connections])
         self.conn_out = np.array([self.node_index[c.out_node] for c in self.connections])
         self.conn_weight = np.array([c.weight for c in self.connections])
+        self.node_map = {n.id: n for n in nodes}
+        self.input_ids = [n.id for n in nodes if n.is_input]
+        self.output_ids = [n.id for n in nodes if n.is_output]
 
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
+
+    def detect_cycles(self, connections, node_ids):
+        adj = defaultdict(list)
+        for c in connections:
+            adj[c.in_node].append(c.out_node)
+
+        visited = set()
+        stack = set()
+
+        def dfs(nid):
+            if nid in stack:
+                return True  # cycle detected
+            if nid in visited:
+                return False
+            visited.add(nid)
+            stack.add(nid)
+            for neighbor in adj[nid]:
+                if dfs(neighbor):
+                    return True
+            stack.remove(nid)
+            return False
+
+        for nid in node_ids:
+            if dfs(nid):
+                return True
+
+        return False
 
     def topo_sort(self):
         """ Kahn's algorithm for topological sorting"""
@@ -148,7 +176,6 @@ nodes = [
 ]
 
 connections = [
-    # Connection(5, 0, 0.8),
     Connection(0, 2, 0.8),
     Connection(1, 2, -0.4),
     Connection(2, 3, 1.5),
@@ -157,6 +184,7 @@ connections = [
     Connection(2, 4, 1.5),
     Connection(3, 5, 1.5),
     Connection(4, 5, 1.5),
+    # Connection(5, 4, 0.8),
 ]
 
 net = NEATNetwork(nodes, connections)

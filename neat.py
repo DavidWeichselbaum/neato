@@ -9,18 +9,30 @@ import networkx as nx
 
 class Node:
     act_funcs = {
-        'bias': lambda x: 1,
-        'tanh': np.tanh,
-        'relu': lambda x: np.maximum(0, x),
-        'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
         'linear': lambda x: x,
+        'relu': lambda x: np.maximum(0, x),
+        # 'tanh': np.tanh,
+        'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
+        'gaussian': lambda x: np.exp(-x**2),
+        'sine': np.sin,
+        # 'abs': np.abs,
+        'square': lambda x: x**2,
+        # 'step': lambda x: np.where(x >= 0, 1.0, 0.0),
+        # 'softsign': lambda x: x / (1 + np.abs(x)),
+        'softplus': lambda x: np.log1p(np.exp(x)),  # smooth relu
     }
 
-    def __init__(self, node_id, is_input=False, is_output=False, activation='tanh'):
+
+    def __init__(self, node_id, is_input=False, is_output=False, is_bias=False, activation='linear'):
         self.id = node_id
         self.is_input = is_input
         self.is_output = is_output
+        self.is_bias = is_bias
         self.activation = self.act_funcs[activation]
+
+        if self.is_bias:
+            self.is_input = True
+            self.activation = lambda x: 1
 
     def activate(self, input_):
         return self.activation(input_)
@@ -138,17 +150,30 @@ class NEATNetwork:
 
         node_labels = {}
         positions = {}
+        node_colors = []
+
         for nid in self.node_ids:
+            node = self.node_map[nid]
             G.add_node(nid)
             node_labels[nid] = str(nid)
 
+            # Layout
             level = self.id_to_layer[nid]
             level_ids = self.layer_order[level]
             n_nodes_level = len(level_ids)
             order_level = level_ids.index(nid)
-            position = (level, 1 - 1/n_nodes_level * order_level)
+            position = (level, 1 - 1 / n_nodes_level * order_level)
             positions[nid] = position
 
+            # Color
+            if node.is_bias:
+                node_colors.append('yellow')
+            elif node.is_input:
+                node_colors.append('green')
+            elif node.is_output:
+                node_colors.append('skyblue')
+            else:
+                node_colors.append('lightgray')
 
         edge_colors = []
         edge_labels = {}
@@ -158,8 +183,9 @@ class NEATNetwork:
             edge_labels[(c.in_node, c.out_node)] = f"{c.weight:.2f}"
 
         nx.draw(G, positions, labels=node_labels, with_labels=True,
-                node_color='lightgray', edgecolors='black', node_size=800,
+                node_color=node_colors, edgecolors='black', node_size=800,
                 edge_color=edge_colors, arrows=True)
+
         nx.draw_networkx_edge_labels(G, positions, edge_labels=edge_labels,
                                      font_size=8, font_color='black')
 

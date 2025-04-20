@@ -6,13 +6,16 @@ from numba import njit
 import matplotlib.pyplot as plt
 import networkx as nx
 
+from utils.utils import render_cpp_image
+
 
 class Node:
     act_funcs = {
+        'bias': lambda x: 1,
         'tanh': np.tanh,
         'relu': lambda x: np.maximum(0, x),
         'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
-        'linear': lambda x: x
+        'linear': lambda x: x,
     }
 
     def __init__(self, node_id, is_input=False, is_output=False, activation='tanh'):
@@ -167,27 +170,42 @@ class NEATNetwork:
 
 
 nodes = [
-    Node(0, is_input=True),
+    Node(0, is_input=True, activation='bias'),
+
     Node(1, is_input=True),
-    Node(2, activation='relu'),
-    Node(3, activation='relu'),
-    Node(4, activation='relu'),
-    Node(5, is_output=True, activation='sigmoid')
+    Node(2, is_input=True),
+
+    Node(3, is_output=True, activation='sigmoid'),
+    Node(4, is_output=True, activation='sigmoid'),
+    Node(5, is_output=True, activation='sigmoid'),
+
+    Node(6, activation='relu'),
+    Node(7, activation='sigmoid'),
+    Node(8, activation='tanh'),
 ]
 
 connections = [
-    Connection(0, 2, 0.8),
-    Connection(1, 2, -0.4),
-    Connection(2, 3, 1.5),
-    Connection(1, 3, 1.5),
-    Connection(1, 4, 1.5),
-    Connection(2, 4, 1.5),
-    Connection(3, 5, 1.5),
-    Connection(4, 5, 1.5),
-    # Connection(5, 4, 0.8),
+    Connection(1, 6, 0.5),
+    Connection(2, 6, 0.1),
+
+    Connection(6, 7, -0.1),
+    Connection(1, 7, 1),
+
+    Connection(7, 8, 2),
+
+    Connection(1, 3, 2),
+    Connection(8, 3, 1),
+    Connection(8, 4, 1),
+    Connection(8, 5, 1),
+    Connection(0, 5, 1),
 ]
 
 net = NEATNetwork(nodes, connections)
 net.visualize()
-out = net.activate([1.0, 0.5])
+out = net.activate([0.5, 0.5, 0.5])
 print(out)
+
+image = render_cpp_image(net)
+plt.imshow(image)
+plt.axis('off')
+plt.show()

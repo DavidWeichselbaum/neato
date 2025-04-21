@@ -10,15 +10,14 @@ import networkx as nx
 class Node:
     act_funcs = {
         'linear': lambda x: x,
-        'relu': lambda x: np.maximum(0, x),
-        # 'tanh': np.tanh,
+        # 'relu': lambda x: np.maximum(0, x),
+        'tanh': np.tanh,
         'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
         'gaussian': lambda x: np.exp(-x**2),
         'sine': np.sin,
         # 'abs': np.abs,
         'square': lambda x: x**2,
         # 'step': lambda x: np.where(x >= 0, 1.0, 0.0),
-        # 'softsign': lambda x: x / (1 + np.abs(x)),
         'softplus': lambda x: np.log1p(np.exp(x)),  # smooth relu
     }
 
@@ -146,8 +145,12 @@ class NEATNetwork:
         return [values[self.node_index[nid]] for nid in self.output_ids]
 
     def visualize(self):
-        G = nx.DiGraph()
+        fig, ax = plt.subplots(figsize=(6, 6))
+        self.get_graph_plot(ax)
+        plt.show()
 
+    def get_graph_plot(self, ax):
+        G = nx.DiGraph()
         node_labels = {}
         positions = {}
         node_colors = []
@@ -158,11 +161,11 @@ class NEATNetwork:
             node_labels[nid] = str(nid)
 
             # Layout
-            level = self.id_to_layer[nid]
+            level = self.id_to_layer.get(nid, 0)
             level_ids = self.layer_order[level]
             n_nodes_level = len(level_ids)
-            order_level = level_ids.index(nid)
-            position = (level, 1 - 1 / n_nodes_level * order_level)
+            order_level = level_ids.index(nid) if nid in level_ids else 0
+            position = (level, 1 - 1 / max(n_nodes_level, 1) * order_level)
             positions[nid] = position
 
             # Color
@@ -182,12 +185,10 @@ class NEATNetwork:
             edge_colors.append('red' if c.weight < 0 else 'blue')
             edge_labels[(c.in_node, c.out_node)] = f"{c.weight:.2f}"
 
-        nx.draw(G, positions, labels=node_labels, with_labels=True,
-                node_color=node_colors, edgecolors='black', node_size=800,
-                edge_color=edge_colors, arrows=True)
+        nx.draw(G, positions, ax=ax, labels=node_labels, with_labels=True,
+                node_color=node_colors, edgecolors='black', node_size=400,
+                edge_color=edge_colors, arrows=True, font_size=6)
 
         nx.draw_networkx_edge_labels(G, positions, edge_labels=edge_labels,
-                                     font_size=8, font_color='black')
-
-        plt.axis('off')
-        plt.show()
+                                     font_size=6, font_color='black', ax=ax)
+        ax.axis('off')

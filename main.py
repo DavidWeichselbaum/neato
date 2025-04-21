@@ -72,5 +72,6 @@ class CCPEvolution:
 
 
 net = create_random_net(2, 3, 16, 64)
+# print(net)
 # net.visualize()
 CCPEvolution(net, img_size=64)

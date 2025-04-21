@@ -10,14 +10,11 @@ import networkx as nx
 class Node:
     act_funcs = {
         'linear': lambda x: x,
-        # 'relu': lambda x: np.maximum(0, x),
         'tanh': np.tanh,
         'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
         'gaussian': lambda x: np.exp(-x**2),
         'sine': np.sin,
-        # 'abs': np.abs,
         'square': lambda x: x**2,
-        # 'step': lambda x: np.where(x >= 0, 1.0, 0.0),
         'softplus': lambda x: np.log1p(np.exp(x)),  # smooth relu
     }
 
@@ -178,6 +175,7 @@ class NEATNetwork:
             else:
                 node_colors.append('lightgray')
 
+        # Draw main graph
         edge_colors = []
         edge_labels = {}
         for c in self.connections:
@@ -186,9 +184,28 @@ class NEATNetwork:
             edge_labels[(c.in_node, c.out_node)] = f"{c.weight:.2f}"
 
         nx.draw(G, positions, ax=ax, labels=node_labels, with_labels=True,
-                node_color=node_colors, edgecolors='black', node_size=400,
+                node_color=node_colors, edgecolors='black', node_size=600,
                 edge_color=edge_colors, arrows=True, font_size=6)
 
         nx.draw_networkx_edge_labels(G, positions, edge_labels=edge_labels,
                                      font_size=6, font_color='black', ax=ax)
+
+        # Inline activation plots
+        for nid in self.node_ids:
+            node = self.node_map[nid]
+            if node.is_bias:
+                continue  # skip plotting for bias node
+
+            pos = positions[nid]
+            x0, y0 = pos
+
+            inset = ax.inset_axes([x0 - 0.05, y0 - 0.05, 0.1, 0.1], transform=ax.transData)
+            xs = np.linspace(-5, 5, 50)
+            ys = node.activate(xs)
+            inset.plot(xs, ys, linewidth=1)
+            inset.set_xticks([])
+            inset.set_yticks([])
+            inset.set_facecolor('white')
+            inset.set_frame_on(False)
+
         ax.axis('off')

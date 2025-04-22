@@ -70,8 +70,14 @@ class CCPEvolution:
                     self.generate_grid()
                     return
 
-
 net = create_random_net(2, 3, 16, 64)
-# print(net)
-# net.visualize()
-CCPEvolution(net, img_size=64)
+
+# from time import time
+# start = time()
+# image = render_cpp_image(net, width=512, height=512)
+# end = time()
+# print(end - start)
+# plt.imshow(image)
+# plt.show()
+
+CCPEvolution(net, img_size=128)

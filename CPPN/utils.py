@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def render_cpp_image(net, width=128, height=128, input_range=(-1, 1), scale=1.0):
+def render_cppn_image(net, width=128, height=128, input_range=(-1, 1), scale=1.0):
     """
     Renders a 2D RGB image using the NEAT network.
     Inputs are (x, y), outputs are interpreted as RGB in [0, 1]

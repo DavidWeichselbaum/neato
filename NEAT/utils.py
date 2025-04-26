@@ -1,9 +1,8 @@
+import numpy as np
 from copy import deepcopy
 from random import random, choice, uniform
 
-import numpy as np
-
-from neat import Node, Connection, NEATNetwork, act_funcs
+from NEAT.NEAT import Node, Connection, NEATNetwork, act_funcs
 
 
 def create_random_net(n_inputs, n_outputs, n_hidden, n_connections,
@@ -67,10 +66,6 @@ def create_random_net(n_inputs, n_outputs, n_hidden, n_connections,
 
     conn_objs = [Connection(src, dst, w) for src, dst, w in connections]
     return NEATNetwork(nodes, conn_objs)
-
-
-from copy import deepcopy
-from random import random, choice, uniform
 
 
 def mutate_net(

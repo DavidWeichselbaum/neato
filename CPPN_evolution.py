@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils.utils import render_cpp_image
-from utils.evolution import create_random_net, mutate_net
+from CPPN.utils import render_cppn_image
+from NEAT.utils import create_random_net, mutate_net
 
 
-class CCPEvolution:
+class CPPNEvolution:
     def __init__(self, base_net, img_size=128):
         self.base_net = base_net
         self.img_size = img_size
@@ -40,7 +40,7 @@ class CCPEvolution:
                     self.nets[i][j] = mutate_net(self.base_net)
 
                 # CPP image
-                img = render_cpp_image(self.nets[i][j], width=self.img_size, height=self.img_size)
+                img = render_cppn_image(self.nets[i][j], width=self.img_size, height=self.img_size)
                 self.images[i][j] = img
                 self.axes_img[i][j].imshow(img)
                 self.axes_img[i][j].axis('off')
@@ -74,10 +74,10 @@ net = create_random_net(2, 3, 16, 64)
 
 # from time import time
 # start = time()
-# image = render_cpp_image(net, width=512, height=512)
+# image = render_cppn_image(net, width=512, height=512)
 # end = time()
 # print(end - start)
 # plt.imshow(image)
 # plt.show()
 
-CCPEvolution(net, img_size=128)
+CPPNEvolution(net, img_size=128)

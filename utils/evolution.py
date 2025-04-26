@@ -3,13 +3,13 @@ from random import random, choice, uniform
 
 import numpy as np
 
-from neat import Node, Connection, NEATNetwork
+from neat import Node, Connection, NEATNetwork, act_funcs
 
 
 def create_random_net(n_inputs, n_outputs, n_hidden, n_connections,
                        activation_choices=None, weight_range=(-2.0, 2.0), allow_recurrent=False):
     if activation_choices is None:
-        activation_choices = list(Node.act_funcs.keys())
+        activation_choices = list(act_funcs.keys())
 
     nodes = []
     node_id = 0
@@ -87,7 +87,7 @@ def mutate_net(
     allow_recurrent=False
 ):
     if activation_choices is None:
-        activation_choices = list(Node.act_funcs.keys())
+        activation_choices = list(act_funcs.keys())
 
     nodes = deepcopy(net.nodes)
     connections = deepcopy(net.connections)
@@ -124,9 +124,9 @@ def mutate_net(
         for n in nodes:
             if not n.is_input and not n.is_bias:
                 if random() < 0.1:
-                    old_act = [k for k, v in Node.act_funcs.items() if v == n.activation]
+                    old_act = [k for k, v in act_funcs.items() if v == n.activation]
                     new_act = choice(activation_choices)
-                    n.activation = Node.act_funcs[new_act]
+                    n.activation = act_funcs[new_act]
                     print(f"⚡ Changed activation of node {n.id} from {old_act[0] if old_act else 'unknown'} to {new_act}")
 
     # Add connection

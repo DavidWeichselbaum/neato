@@ -8,7 +8,6 @@ import networkx as nx
 from numba import njit
 
 
-# === Activation functions ===
 @njit
 def act_linear(x): return x
 @njit
@@ -24,6 +23,15 @@ def act_square(x): return x**2
 @njit
 def act_softplus(x): return math.log1p(math.exp(x))
 
+act_funcs = {
+    'linear': act_linear,
+    'tanh': act_tanh,
+    'sigmoid': act_sigmoid,
+    'gaussian': act_gaussian,
+    'sine': act_sine,
+    'square': act_square,
+    'softplus': act_softplus,
+}
 
 @njit
 def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order, input_indices, input_vals, output_indices):
@@ -76,15 +84,6 @@ def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order, 
 
 
 class Node:
-    act_funcs = {
-        'linear': lambda x: x,
-        'tanh': np.tanh,
-        'sigmoid': lambda x: 1 / (1 + np.exp(-x)),
-        'gaussian': lambda x: np.exp(-x**2),
-        'sine': np.sin,
-        'square': lambda x: x**2,
-        'softplus': lambda x: np.log1p(np.exp(x)),  # smooth relu
-    }
 
     def __init__(self, node_id, is_input=False, is_output=False, is_bias=False, activation='linear'):
         self.id = node_id
@@ -92,7 +91,7 @@ class Node:
         self.is_output = is_output
         self.is_bias = is_bias
         self.activation_name = activation
-        self.activation = self.act_funcs[activation]
+        self.activation = act_funcs[activation]
 
         if self.is_bias:
             self.is_input = True
@@ -100,7 +99,10 @@ class Node:
             self.activation_name = 'bias'
 
     def activate(self, input_):
-        return self.activation(input_)
+        if isinstance(input_, np.ndarray):
+            return np.array([self.activation(x) for x in input_])
+        else:
+            return self.activation(input_)
 
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)

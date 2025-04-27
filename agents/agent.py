@@ -6,19 +6,21 @@ from agents.constants import *
 
 
 class Agent:
-    def __init__(self, space, position, net):
+    def __init__(self, position, net, energy):
+        self.net = net
+        self.energy = energy
+
         self.body = pymunk.Body(1, pymunk.moment_for_circle(1, 0, AGENT_RADIUS))
         self.body.position = position
+
         self.shape = pymunk.Circle(self.body, AGENT_RADIUS)
         self.shape.elasticity = WALL_ELASTICITY
         self.shape.friction = WALL_FRICTION
-        space.add(self.body, self.shape)
-        self.net = net
+
         self.counter = 0
-        self.energy = INITIAL_ENERGY
-        self.facing_angle = random.uniform(0, 2 * math.pi)
         self.last_inputs = []
         self.last_outputs = []
+        self.facing_angle = random.uniform(0, 2 * math.pi)
 
     def update(self, space):
         self.counter += 1

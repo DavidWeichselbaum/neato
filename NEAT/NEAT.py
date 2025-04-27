@@ -125,15 +125,15 @@ class NEATNetwork:
         self.node_ids = [n.id for n in nodes]
 
         if self.detect_cycles(self.connections, self.node_ids):
-            raise Exception("Network is not a directed acyclic graph")
+            raise ValueError("Network is not a directed acyclic graph")
 
         # for activation
         self.exec_order, self.layer_order = self.topo_sort()
         self.id_to_layer = {nid: layer_idx for layer_idx, layer in enumerate(self.layer_order) for nid in layer}
         self.node_index = {nid: i for i, nid in enumerate(self.node_ids)}
-        self.conn_in = np.array([self.node_index[c.in_node] for c in self.connections])
-        self.conn_out = np.array([self.node_index[c.out_node] for c in self.connections])
-        self.conn_weight = np.array([c.weight for c in self.connections])
+        self.conn_in = np.array([self.node_index[c.in_node] for c in self.connections], dtype=np.int32)
+        self.conn_out = np.array([self.node_index[c.out_node] for c in self.connections], dtype=np.int32)
+        self.conn_weight = np.array([c.weight for c in self.connections], dtype=np.float32)
         self.node_map = {n.id: n for n in nodes}
         self.input_ids = [n.id for n in nodes if n.is_input]
         self.output_ids = [n.id for n in nodes if n.is_output]
@@ -143,9 +143,9 @@ class NEATNetwork:
             for nid in self.node_ids
         ])
 
-        self.exec_order_arr = np.array([self.node_index[nid] for nid in self.exec_order])
-        self.input_idx_arr = np.array([self.node_index[nid] for nid in self.input_ids])
-        self.output_idx_arr = np.array([self.node_index[nid] for nid in self.output_ids])
+        self.exec_order_arr = np.array([self.node_index[nid] for nid in self.exec_order], dtype=np.int32)
+        self.input_idx_arr = np.array([self.node_index[nid] for nid in self.input_ids], dtype=np.int32)
+        self.output_idx_arr = np.array([self.node_index[nid] for nid in self.output_ids], dtype=np.int32)
 
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)

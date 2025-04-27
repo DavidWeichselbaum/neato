@@ -5,8 +5,10 @@ from random import random, choice, uniform
 from NEAT.NEAT import Node, Connection, NEATNetwork, act_funcs
 
 
-def create_random_net(n_inputs, n_outputs, n_hidden, n_connections,
-                       activation_choices=None, weight_range=(-2.0, 2.0), allow_recurrent=False):
+def create_random_net(
+    n_inputs, n_outputs, n_hidden, n_connections,
+    activation_choices=None, weight_range=(-2.0, 2.0), allow_recurrent=False,
+):
     if activation_choices is None:
         activation_choices = list(act_funcs.keys())
 
@@ -79,7 +81,8 @@ def mutate_net(
     weight_perturb_std=0.5,
     weight_range=(-2.0, 2.0),
     activation_choices=None,
-    allow_recurrent=False
+    allow_recurrent=False,
+    verbose=False,
 ):
     if activation_choices is None:
         activation_choices = list(act_funcs.keys())
@@ -108,11 +111,11 @@ def mutate_net(
             elif r < 0.9:
                 old = c.weight
                 c.weight += np.random.normal(0, weight_perturb_std)
-                print(f"🔧 Nudged weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
+                if verbose: print(f"🔧 Nudged weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
             else:
                 old = c.weight
                 c.weight = uniform(*weight_range)
-                print(f"🎲 Reset weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
+                if verbose: print(f"🎲 Reset weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
 
     # Mutate activation functions
     if random() < mutate_activation_prob:
@@ -122,7 +125,7 @@ def mutate_net(
                     old_act = [k for k, v in act_funcs.items() if v == n.activation]
                     new_act = choice(activation_choices)
                     n.activation = act_funcs[new_act]
-                    print(f"⚡ Changed activation of node {n.id} from {old_act[0] if old_act else 'unknown'} to {new_act}")
+                    if verbose: print(f"⚡ Changed activation of node {n.id} from {old_act[0] if old_act else 'unknown'} to {new_act}")
 
     # Add connection
     if random() < add_conn_prob:
@@ -135,7 +138,7 @@ def mutate_net(
                     w = uniform(*weight_range)
                     connections.append(Connection(src, dst, w))
                     con_set.add((src, dst))
-                    print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
+                    if verbose: print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
                     break
             attempts += 1
 
@@ -143,7 +146,7 @@ def mutate_net(
     if connections and random() < del_conn_prob:
         c = choice(connections)
         connections.remove(c)
-        print(f"❌ Removed connection {c.in_node} -> {c.out_node}")
+        if verbose: print(f"❌ Removed connection {c.in_node} -> {c.out_node}")
 
     # Add node
     if random() < add_node_prob and connections:
@@ -154,7 +157,7 @@ def mutate_net(
         nodes.append(new_node)
         connections.append(Connection(c.in_node, new_node.id, 1.0))
         connections.append(Connection(new_node.id, c.out_node, c.weight))
-        print(f"✨ Split connection {c.in_node}->{c.out_node} with new node {new_node.id} ({new_act})")
+        if verbose: print(f"✨ Split connection {c.in_node}->{c.out_node} with new node {new_node.id} ({new_act})")
         max_node_id += 1
 
     # Delete hidden node
@@ -163,6 +166,6 @@ def mutate_net(
         nodes = [n for n in nodes if n.id != nid]
         removed_conns = [c for c in connections if c.in_node == nid or c.out_node == nid]
         connections = [c for c in connections if c.in_node != nid and c.out_node != nid]
-        print(f"🗑️ Removed node {nid} and {len(removed_conns)} connected links")
+        if verbose: print(f"🗑️ Removed node {nid} and {len(removed_conns)} connected links")
 
     return NEATNetwork(nodes, connections)

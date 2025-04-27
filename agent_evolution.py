@@ -2,6 +2,7 @@ import math
 import random
 
 import pygame
+import matplotlib.pyplot as plt
 
 from NEAT.utils import create_random_net
 from agents.environment import Environment
@@ -14,11 +15,14 @@ def main():
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
 
+    plt.ion()  # Turn on interactive mode for matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+
     env = Environment()
 
     for _ in range(10):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
-        net = create_random_net(N_RANGEFINDERS, 2, 1, 4)
+        net = create_random_net(N_RANGEFINDERS, 2, 5, 20)
         energy = MAX_ENERGY * 0.5
         agent = Agent(start_position, net, energy)
         env.add_agent(agent)
@@ -26,14 +30,14 @@ def main():
     for _ in range(NUM_FOOD_INITIAL):
         env.spawn_food()
 
-    food_timer = 0.0
     selected_agent = env.agents[0] if env.agents else None
+    last_selected_net = None
 
+    food_timer, info_timer = 0.0, 0.0
     running = True
     while running:
-        clock.tick(FPS)  # control FPS (but ignore real wall time)
+        clock.tick(FPS)
         dt = 1.0 / FPS   # fixed simulation timestep
-        food_timer += dt
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -49,18 +53,34 @@ def main():
             for food in eaten:
                 env.remove_food(food)
 
+        food_timer += dt
         if food_timer >= FOOD_SPAWN_INTERVAL:
             env.spawn_food()
             food_timer = 0.0
 
+        info_timer += dt
+        if info_timer >= INFO_INTERVAL:
+            print(f"Agents: {len(env.agents)}, FPS: {clock.get_fps():.1f}")
+            info_timer = 0.0
+
         env.step(dt)
-        env.draw_environment(screen, selected_agent)
-        pygame.display.flip()
 
         if not env.agents:
             running = False
 
+        if selected_agent and (selected_agent.net != last_selected_net):
+            ax.clear()
+            selected_agent.net.get_graph_plot(ax)
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            last_selected_net = selected_agent.net
+
+        env.draw_environment(screen, selected_agent)
+        pygame.display.flip()
+
     pygame.quit()
+    plt.close(fig)
 
 if __name__ == "__main__":
-    main()
+    while True:
+        main()

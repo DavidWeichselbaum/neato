@@ -71,7 +71,6 @@ class Environment:
         dead_agents = []
 
         for agent in self.agents:
-            agent.update(self.space)
 
             if agent.energy <= 0:
                 dead_agents.append(agent)
@@ -93,6 +92,8 @@ class Environment:
                 child_agent = Agent(spawn_position, child_net, energy)
                 child_agent.facing_angle = (agent.facing_angle + math.pi) % (2 * math.pi)
                 new_agents.append(child_agent)
+
+            agent.update(self.space)
 
         for agent in dead_agents:
             self.remove_agent(agent)

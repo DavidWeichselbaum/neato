@@ -11,7 +11,6 @@ from agents.agent import Agent
 
 
 def main():
-    pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock()
 
@@ -22,7 +21,11 @@ def main():
 
     for _ in range(10):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
-        net = create_random_net(N_RANGEFINDERS, 2, 5, 20)
+        net = create_random_net(
+            n_inputs=N_INPUTS, n_outputs=2, n_hidden=1, n_connections=10,
+            output_activation_choices=["tanh"],  # range: (-1, 1)
+            input_names=INPUT_NAMES, output_names=OUTPUT_NAMES,
+        )
         energy = MAX_ENERGY * 0.5
         agent = Agent(start_position, net, energy)
         env.add_agent(agent)
@@ -82,5 +85,5 @@ def main():
     plt.close(fig)
 
 if __name__ == "__main__":
-    while True:
-        main()
+    pygame.init()
+    main()

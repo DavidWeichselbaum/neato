@@ -5,15 +5,18 @@ import math
 import pygame
 
 from NEAT.utils import mutate_net
+from agents.agent import Agent
+from agents.food import Food
+from agents.wall import Wall
 from agents.constants import *
-from agents.agent import Agent  # avoid circular import
 
 
 class Environment:
     def __init__(self):
         self.space = pymunk.Space()
         self.space.gravity = (0, 0)
-        self.food_shapes = []
+        self.foods = []
+        self.walls = []
         self.agents = []
 
         self.create_boundary_walls()
@@ -27,10 +30,8 @@ class Environment:
         angle = random.uniform(0, 2 * math.pi)
         x2 = x1 + math.cos(angle) * length
         y2 = y1 + math.sin(angle) * length
-        segment = pymunk.Segment(self.space.static_body, (x1, y1), (x2, y2), WALL_THICKNESS)
-        segment.elasticity = WALL_ELASTICITY
-        segment.friction = WALL_FRICTION
-        self.space.add(segment)
+        wall = Wall(self.space, (x1, y1), (x2, y2))
+        self.walls.append(wall)
 
     def create_boundary_walls(self):
         corners = [
@@ -40,23 +41,17 @@ class Environment:
             ((0, HEIGHT), (0, 0)),
         ]
         for a, b in corners:
-            segment = pymunk.Segment(self.space.static_body, a, b, WALL_THICKNESS)
-            segment.elasticity = WALL_ELASTICITY
-            segment.friction = WALL_FRICTION
-            self.space.add(segment)
+            wall = Wall(self.space, a, b)
+            self.walls.append(wall)
 
     def spawn_food(self):
         pos = random.randint(20, WIDTH - 20), random.randint(20, HEIGHT - 20)
-        body = pymunk.Body(body_type=pymunk.Body.KINEMATIC)
-        body.position = pos
-        shape = pymunk.Circle(body, FOOD_RADIUS)
-        shape.sensor = True
-        self.space.add(body, shape)
-        self.food_shapes.append(shape)
+        food = Food(self.space, pos)
+        self.foods.append(food)
 
     def remove_food(self, food):
-        self.space.remove(food.body, food)
-        self.food_shapes.remove(food)
+        self.space.remove(food.body, food.shape)
+        self.foods.remove(food)
 
     def add_agent(self, agent):
         self.agents.append(agent)
@@ -105,7 +100,7 @@ class Environment:
 
     def check_food_collisions(self, agent):
         eaten = []
-        for food in self.food_shapes:
+        for food in self.foods:
             if food.body.position.get_distance(agent.body.position) < AGENT_RADIUS + FOOD_RADIUS:
                 agent.energy += ENERGY_PER_FOOD
                 agent.energy = min(agent.energy, MAX_ENERGY)
@@ -118,21 +113,22 @@ class Environment:
     def draw_environment(self, screen, selected_agent):
         screen.fill(BACKGROUND_COLOR)
 
-        # Draw walls and food
-        for shape in self.space.shapes:
-            if isinstance(shape, pymunk.Circle):
-                pos = int(shape.body.position.x), int(shape.body.position.y)
-                radius = int(shape.radius)
-                color = FOOD_COLOR if shape.sensor else AGENT_COLOR
-                pygame.draw.circle(screen, color, pos, radius)
-            elif isinstance(shape, pymunk.Segment):
-                p1 = int(shape.a.x), int(shape.a.y)
-                p2 = int(shape.b.x), int(shape.b.y)
-                pygame.draw.line(screen, WALL_COLOR, p1, p2, WALL_THICKNESS)
+        # Draw walls
+        for wall in self.walls:
+            p1 = int(wall.shape.a.x), int(wall.shape.a.y)
+            p2 = int(wall.shape.b.x), int(wall.shape.b.y)
+            pygame.draw.line(screen, wall.color, p1, p2, WALL_THICKNESS)
 
-        # Draw agents and facing direction
+        # Draw food
+        for food in self.foods:
+            pos = int(food.body.position.x), int(food.body.position.y)
+            pygame.draw.circle(screen, food.color, pos, int(food.shape.radius))
+
+        # Draw agents
         for agent in self.agents:
             pos = int(agent.body.position.x), int(agent.body.position.y)
+            pygame.draw.circle(screen, agent.color, pos, AGENT_RADIUS)
+            # Draw facing direction
             facing = pymunk.Vec2d(math.cos(agent.facing_angle), math.sin(agent.facing_angle))
             end = pos[0] + int(facing.x * 20), pos[1] + int(facing.y * 20)
             pygame.draw.line(screen, FACING_COLOR, pos, end, 2)
@@ -164,10 +160,18 @@ class Environment:
             font = pygame.font.SysFont(None, 24)
             y = 30
             for idx, val in enumerate(selected_agent.last_inputs):
-                text = font.render(f'I{idx}: {val:.2f}', True, (255, 255, 255))
+                input_idx = selected_agent.net.input_ids[idx]
+                input_node = selected_agent.net.node_map[input_idx]
+                input_name = input_node.name
+
+                text = font.render(f'I{idx} | {input_name}: {val:.2f}', True, (0, 255, 255))
                 screen.blit(text, (10, y))
                 y += 20
             for idx, val in enumerate(selected_agent.last_outputs):
-                text = font.render(f'O{idx}: {val:.2f}', True, (255, 255, 0))
+                output_idx = selected_agent.net.output_ids[idx]
+                output_node = selected_agent.net.node_map[output_idx]
+                output_name = output_node.name
+
+                text = font.render(f'O{idx} | {output_name}: {val:.2f}', True, (255, 0, 255))
                 screen.blit(text, (10, y))
                 y += 20

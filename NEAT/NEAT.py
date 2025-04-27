@@ -85,16 +85,16 @@ def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order, 
 
 class Node:
 
-    def __init__(self, node_id, is_input=False, is_output=False, is_bias=False, activation='linear'):
+    def __init__(self, node_id, is_input=False, is_output=False, is_bias=False, activation='linear', name=None):
         self.id = node_id
         self.is_input = is_input
         self.is_output = is_output
         self.is_bias = is_bias
         self.activation_name = activation
         self.activation = act_funcs[activation]
+        self.name = name
 
         if self.is_bias:
-            self.is_input = True
             self.activation = lambda x: 1
             self.activation_name = 'bias'
 
@@ -122,8 +122,8 @@ class NEATNetwork:
     def __init__(self, nodes, connections):
         self.nodes = nodes
         self.connections = connections
-        self.node_ids = [n.id for n in nodes]
 
+        self.node_ids = [n.id for n in nodes]
         if self.detect_cycles(self.connections, self.node_ids):
             raise ValueError("Network is not a directed acyclic graph")
 
@@ -226,7 +226,10 @@ class NEATNetwork:
         for nid in self.node_ids:
             node = self.node_map[nid]
             G.add_node(nid)
-            node_labels[nid] = str(nid)
+            if node.name:
+                node_labels[nid] = f"{nid} {node.name}"
+            else:
+                node_labels[nid] = f"{nid}"
 
             # Layout
             level = self.id_to_layer.get(nid, 0)

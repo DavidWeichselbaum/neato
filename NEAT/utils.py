@@ -7,8 +7,13 @@ from NEAT.NEAT import Node, Connection, NEATNetwork, act_funcs
 
 def create_random_net(
     n_inputs, n_outputs, n_hidden, n_connections,
-    activation_choices=None, weight_range=(-2.0, 2.0), allow_recurrent=False,
+    input_activation_choices=["linear"], activation_choices=None, output_activation_choices=["linear"],
+    weight_range=(-2.0, 2.0), allow_recurrent=False,
+    input_names=None, output_names=None,
 ):
+    if input_names: assert len(input_names) == n_inputs
+    if output_names: assert len(output_names) == n_outputs
+
     if activation_choices is None:
         activation_choices = list(act_funcs.keys())
 
@@ -22,8 +27,12 @@ def create_random_net(
 
     # Input nodes
     input_nodes = []
-    for _ in range(n_inputs):
-        nodes.append(Node(node_id, is_input=True))
+    for i in range(n_inputs):
+        act = choice(input_activation_choices)
+        name = None
+        if input_names:
+            name = input_names[i]
+        nodes.append(Node(node_id, is_input=True, activation=act, name=name))
         input_nodes.append(node_id)
         node_id += 1
 
@@ -37,9 +46,12 @@ def create_random_net(
 
     # Output nodes
     output_nodes = []
-    for _ in range(n_outputs):
-        act = choice(activation_choices)
-        nodes.append(Node(node_id, is_output=True, activation=act))
+    for i in range(n_outputs):
+        act = choice(output_activation_choices)
+        name = None
+        if output_names:
+            name = output_names[i]
+        nodes.append(Node(node_id, is_output=True, activation=act, name=name))
         output_nodes.append(node_id)
         node_id += 1
 
@@ -120,7 +132,7 @@ def mutate_net(
     # Mutate activation functions
     if random() < mutate_activation_prob:
         for n in nodes:
-            if not n.is_input and not n.is_bias:
+            if not any((n.is_input, n.is_bias, n.is_output)):
                 if random() < 0.1:
                     old_act = [k for k, v in act_funcs.items() if v == n.activation]
                     new_act = choice(activation_choices)

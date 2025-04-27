@@ -16,6 +16,10 @@ class Agent:
         self.shape = pymunk.Circle(self.body, AGENT_RADIUS)
         self.shape.elasticity = WALL_ELASTICITY
         self.shape.friction = WALL_FRICTION
+        self.shape.owner = self
+
+        self.color = AGENT_COLOR
+        self.sight_color = AGENT_SIGHT_COLOR
 
         self.counter = 0
         self.last_inputs = []
@@ -30,7 +34,9 @@ class Agent:
             self.last_inputs = inputs
             self.last_outputs = outputs
             thrust = outputs[0]
+            thrust = min(1.0, max(-1.0, thrust))
             turn = outputs[1] * 2 - 1
+            thrust = min(1.0, max(-1.0, turn))
 
             self.facing_angle += turn * TURN_SPEED * (1.0 / FPS)
 
@@ -46,15 +52,26 @@ class Agent:
         inputs = []
         angle_start = self.facing_angle - math.pi / 2
         angle_step = math.pi / (N_RANGEFINDERS - 1)
+
         for i in range(N_RANGEFINDERS):
             angle = angle_start + i * angle_step
             ray_dir = pymunk.Vec2d(math.cos(angle), math.sin(angle))
             start = self.body.position
             end = start + ray_dir * RANGEFINDER_RADIUS
+
             hits = space.segment_query(start, end, 1, pymunk.ShapeFilter())
+
             min_distance = RANGEFINDER_RADIUS
+            color = (0.0, 0.0, 0.0)
+
             for hit in hits:
                 if hit.shape != self.shape:
-                    min_distance = min(min_distance, hit.alpha * RANGEFINDER_RADIUS)
+                    hit_distance = hit.alpha * RANGEFINDER_RADIUS
+                    if hit_distance < min_distance:
+                        min_distance = hit_distance
+                        color = hit.shape.owner.sight_color
+
             inputs.append(min_distance / RANGEFINDER_RADIUS)
+            inputs.extend(color)
+
         return inputs

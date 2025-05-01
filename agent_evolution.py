@@ -79,6 +79,48 @@ def print_infos(env, clock, simulation_seconds, start_time):
     print(f"Sim time: {simulation_time}    Wall time: {wall_time}    FPS: {visualization_FPS:.1f}    Agents: {n_agents}    Food: {n_foods}")
 
 
+def simulation_step(dt, env, food_timer):
+    dead_agents, new_agents = env.update_agents(dt)
+    env.update_food()
+    env.step(dt)
+
+    food_timer += dt
+    if food_timer >= FOOD_SPAWN_INTERVAL:
+        env.spawn_food()
+        food_timer = 0.0
+
+    return food_timer, dead_agents
+
+def visualization_step(screen, running, clock, selected_agent, dead_agents, env, fig, ax, disable_rendering):
+    keys = pygame.key.get_pressed()
+
+    in_background = keys[pygame.K_b]
+    in_foreground = keys[pygame.K_f]
+    if in_background:
+        disable_rendering = True
+    if in_foreground:
+        disable_rendering = False
+        selected_agent = None
+
+    if not disable_rendering:
+        clock.tick(FPS_VISUALIZATION)
+        selected_agent = handle_selected_agent(selected_agent, dead_agents, keys, env, fig, ax)
+
+        screen.fill(BACKGROUND_COLOR)
+        env.draw_environment(screen)
+        if selected_agent:
+            selected_agent.draw_annotation(screen, env)
+    pygame.display.flip()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+    return running, selected_agent, disable_rendering
+
+
+
+
 def main():
     env = setup_env()
 
@@ -90,42 +132,25 @@ def main():
 
     food_timer, info_timer = 0.0, 0.0
     selected_agent = None
+    disable_rendering = False
     running = True
     start_time = time()
     simulation_seconds = 0.0
     dt = 1.0 / FPS_SIMULATION   # fixed simulation timestep
     while running:
         simulation_seconds += dt
-        clock.tick(FPS_VISUALIZATION)
-        keys = pygame.key.get_pressed()
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-
-        dead_agents, new_agents = env.update_agents(dt)
-        env.update_food()
-        env.step(dt)
+        food_timer, dead_agents = simulation_step(dt, env, food_timer)
         if not env.agents:
             running = False
-
-        food_timer += dt
-        if food_timer >= FOOD_SPAWN_INTERVAL:
-            env.spawn_food()
-            food_timer = 0.0
 
         info_timer += dt
         if info_timer >= INFO_INTERVAL:
             print_infos(env, clock, simulation_seconds, start_time)
             info_timer = 0.0
 
-        selected_agent = handle_selected_agent(selected_agent, dead_agents, keys, env, fig, ax)
-
-        screen.fill(BACKGROUND_COLOR)
-        env.draw_environment(screen)
-        if selected_agent:
-            selected_agent.draw_annotation(screen, env)
-        pygame.display.flip()
+        running, selected_agent, disable_rendering = visualization_step(
+            screen, running, clock, selected_agent, dead_agents, env, fig, ax, disable_rendering)
 
     pygame.quit()
     plt.close(fig)

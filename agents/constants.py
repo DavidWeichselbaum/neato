@@ -1,7 +1,7 @@
 # World
 WIDTH = 1200
 HEIGHT = 800
-FPS_SIMULATION = 30
+FPS_SIMULATION = 15
 
 NUM_FOOD_INITIAL = 100
 NUM_AGENTS_INITIAL = 10
@@ -56,4 +56,4 @@ RAY_COLOR = (0, 255, 255)
 
 # Misc
 INFO_INTERVAL = 5  # seconds simulation time
-FPS_VISUALIZATION = 60  # max visualization FPS
+FPS_VISUALIZATION = FPS_SIMULATION  # max visualization FPS

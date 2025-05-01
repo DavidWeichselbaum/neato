@@ -84,8 +84,8 @@ class Environment:
                         print(f"Mutation failed due to: {error}")
 
                 energy = MAX_ENERGY * 0.5
-                child_agent = Agent(spawn_position, child_net, energy)
-                child_agent.facing_angle = (agent.facing_angle + math.pi) % (2 * math.pi)
+                facing_angle = (agent.facing_angle + math.pi) % (2 * math.pi)
+                child_agent = Agent(spawn_position, child_net, energy, facing_angle)
                 new_agents.append(child_agent)
 
             agent.update(self.space)
@@ -150,6 +150,12 @@ class Environment:
                         min_end = start + ray_dir * (hit.alpha * RANGEFINDER_RADIUS)
                         break
                 pygame.draw.line(screen, RAY_COLOR, pos, (int(min_end.x), int(min_end.y)), 1)
+
+            # draw force
+            SCALE_FORCE_VISUAL = 1  # tweak this to look nice
+            force_end = (pos[0] + selected_agent.last_force.x * SCALE_FORCE_VISUAL,
+                         pos[1] + selected_agent.last_force.y * SCALE_FORCE_VISUAL)
+            pygame.draw.line(screen, (255, 255, 0), pos, force_end, 2)
 
             # Draw energy bar
             energy_ratio = selected_agent.energy / MAX_ENERGY

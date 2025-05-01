@@ -19,7 +19,7 @@ def main():
 
     env = Environment()
 
-    for _ in range(10):
+    for _ in range(1):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
         net = create_random_net(
             n_inputs=N_INPUTS, n_outputs=2, n_hidden=1, n_connections=10,
@@ -27,13 +27,15 @@ def main():
             input_names=INPUT_NAMES, output_names=OUTPUT_NAMES,
         )
         energy = MAX_ENERGY * 0.5
-        agent = Agent(start_position, net, energy)
+        facing_angle = random.uniform(0, 2 * math.pi)
+        agent = Agent(start_position, net, energy, facing_angle)
         env.add_agent(agent)
 
-    for _ in range(NUM_FOOD_INITIAL):
-        env.spawn_food()
+    # for _ in range(NUM_FOOD_INITIAL):
+    #     env.spawn_food()
 
     selected_agent = env.agents[0] if env.agents else None
+    selected_agent.possessed = True
     last_selected_net = None
 
     food_timer, info_timer = 0.0, 0.0
@@ -48,6 +50,26 @@ def main():
 
         dead_agents, new_agents = env.update_agents()
 
+        keys = pygame.key.get_pressed()
+        possession_key = keys[pygame.K_SPACE]
+        forward_key = keys[pygame.K_w]
+        backward_key = keys[pygame.K_s]
+        left_key = keys[pygame.K_a]
+        right_key = keys[pygame.K_d]
+        if possession_key:
+            selected_agent.possessed = not selected_agent.possessed
+        acceleration = 0.0
+        rotation = 0.0
+        if forward_key:
+            acceleration = 1.0
+        if backward_key:
+            acceleration = -1.0
+        if left_key:
+            rotation = 1.0
+        if right_key:
+            rotation = -1.0
+        selected_agent.possession_outputs = [acceleration, rotation]
+
         if selected_agent in dead_agents:
             selected_agent = env.agents[0] if env.agents else None
 
@@ -56,10 +78,10 @@ def main():
             for food in eaten:
                 env.remove_food(food)
 
-        food_timer += dt
-        if food_timer >= FOOD_SPAWN_INTERVAL:
-            env.spawn_food()
-            food_timer = 0.0
+        # food_timer += dt
+        # if food_timer >= FOOD_SPAWN_INTERVAL:
+        #     env.spawn_food()
+        #     food_timer = 0.0
 
         info_timer += dt
         if info_timer >= INFO_INTERVAL:

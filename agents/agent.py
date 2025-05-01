@@ -6,12 +6,15 @@ from agents.constants import *
 
 
 class Agent:
-    def __init__(self, position, net, energy):
+    def __init__(self, position, net, energy, facing_angle):
         self.net = net
         self.energy = energy
+        self.facing_angle = facing_angle
 
         self.body = pymunk.Body(1, pymunk.moment_for_circle(1, 0, AGENT_RADIUS))
         self.body.position = position
+        self.body.angle = self.facing_angle
+        # self.body.damping = 0.9
 
         self.shape = pymunk.Circle(self.body, AGENT_RADIUS)
         self.shape.elasticity = WALL_ELASTICITY
@@ -24,28 +27,43 @@ class Agent:
         self.counter = 0
         self.last_inputs = []
         self.last_outputs = []
-        self.facing_angle = random.uniform(0, 2 * math.pi)
+        self.last_force = None
+
+        self.possessed = False
+        self.possession_outputs = [0.0, 0.0]
 
     def update(self, space):
+        print(f"Body angle: {self.body.angle:.2f}, Facing angle: {self.facing_angle:.2f}")
+
         self.counter += 1
         if self.counter % NETWORK_EVALUATION_STEP == 0:
+
             inputs = self.get_rangefinder_inputs(space)
             outputs = self.net.activate(inputs)
             self.last_inputs = inputs
             self.last_outputs = outputs
+
+            if self.possessed:
+                outputs = self.possession_outputs
+                self.energy += ENERGY_DECAY
+
             thrust = outputs[0]
             thrust = min(1.0, max(-1.0, thrust))
-            turn = outputs[1] * 2 - 1
-            thrust = min(1.0, max(-1.0, turn))
+            turn = outputs[1]
+            turn = min(1.0, max(-1.0, turn))
 
             self.facing_angle += turn * TURN_SPEED * (1.0 / FPS)
 
-            # Cancel lateral drift
             forward = pymunk.Vec2d(math.cos(self.facing_angle), math.sin(self.facing_angle))
-            forward_speed = forward.dot(self.body.velocity)
-            self.body.velocity = forward * forward_speed
 
-            self.body.apply_force_at_local_point(forward * thrust * AGENT_FORCE)
+            force = forward * thrust * AGENT_FORCE * (1.0 / FPS)
+            self.body.apply_force_at_local_point(force)
+            self.last_force = force
+
+            # CRITICAL: reset rotation
+            self.body.angle = self.facing_angle
+            self.body.angular_velocity = 0
+
             self.energy -= ENERGY_DECAY
 
     def get_rangefinder_inputs(self, space):

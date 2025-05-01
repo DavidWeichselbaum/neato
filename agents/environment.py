@@ -61,7 +61,7 @@ class Environment:
         self.space.remove(agent.body, agent.shape)
         self.agents.remove(agent)
 
-    def update_agents(self):
+    def update_agents(self, dt):
         new_agents = []
         dead_agents = []
 
@@ -88,7 +88,7 @@ class Environment:
                 child_agent = Agent(spawn_position, child_net, energy, angle)
                 new_agents.append(child_agent)
 
-            agent.update(self.space)
+            agent.update(self.space, dt)
 
         for agent in dead_agents:
             self.remove_agent(agent)

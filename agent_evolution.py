@@ -1,8 +1,10 @@
 import math
 import random
+from time import time
 
 import pygame
 import matplotlib.pyplot as plt
+from datetime import timedelta
 
 from NEAT.utils import create_random_net
 from agents.environment import Environment
@@ -68,6 +70,15 @@ def controll_agent(keys, selected_agent):
     selected_agent.possession_outputs = [acceleration, rotation]
 
 
+def print_infos(env, clock, simulation_seconds, start_time):
+    n_agents = len(env.agents)
+    n_foods = len(env.foods)
+    visualization_FPS = clock.get_fps()
+    simulation_time = timedelta(seconds=int(simulation_seconds))
+    wall_time = timedelta(seconds=int(time() - start_time))
+    print(f"Sim time: {simulation_time}    Wall time: {wall_time}    FPS: {visualization_FPS:.1f}    Agents: {n_agents}    Food: {n_foods}")
+
+
 def main():
     env = setup_env()
 
@@ -80,18 +91,23 @@ def main():
     food_timer, info_timer = 0.0, 0.0
     selected_agent = None
     running = True
+    start_time = time()
+    simulation_seconds = 0.0
+    dt = 1.0 / FPS_SIMULATION   # fixed simulation timestep
     while running:
-        clock.tick(FPS)
-        dt = 1.0 / FPS   # fixed simulation timestep
+        simulation_seconds += dt
+        clock.tick(FPS_VISUALIZATION)
         keys = pygame.key.get_pressed()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-        dead_agents, new_agents = env.update_agents()
+        dead_agents, new_agents = env.update_agents(dt)
         env.update_food()
         env.step(dt)
+        if not env.agents:
+            running = False
 
         food_timer += dt
         if food_timer >= FOOD_SPAWN_INTERVAL:
@@ -100,11 +116,8 @@ def main():
 
         info_timer += dt
         if info_timer >= INFO_INTERVAL:
-            print(f"Agents: {len(env.agents)}, FPS: {clock.get_fps():.1f}")
+            print_infos(env, clock, simulation_seconds, start_time)
             info_timer = 0.0
-
-        if not env.agents:
-            running = False
 
         selected_agent = handle_selected_agent(selected_agent, dead_agents, keys, env, fig, ax)
 

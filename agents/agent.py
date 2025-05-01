@@ -40,7 +40,7 @@ class Agent:
         end = pos[0] + int(facing.x * 20), pos[1] + int(facing.y * 20)
         pygame.draw.line(screen, FACING_COLOR, pos, end, 2)
 
-    def update(self, space):
+    def update(self, space, dt):
         self.counter += 1
         if self.counter % NETWORK_EVALUATION_STEP == 0:
 
@@ -51,20 +51,20 @@ class Agent:
 
             if self.possessed:
                 outputs = self.possession_outputs
-                self.energy += ENERGY_DECAY
+                self.energy = MAX_ENERGY / 2
 
             thrust = outputs[0]
             thrust = min(1.0, max(-1.0, thrust))
             turn = outputs[1]
             turn = min(1.0, max(-1.0, turn))
 
-            self.body.angle += turn * TURN_SPEED * (1.0 / FPS)
+            self.body.angle += turn * TURN_SPEED * dt
 
-            direction = pymunk.Vec2d(1, 0) * (1.0 / FPS)
-            force = direction * thrust * AGENT_FORCE
+            direction = pymunk.Vec2d(1, 0)
+            force = direction * thrust * AGENT_FORCE * dt
             self.body.apply_force_at_local_point(force)
 
-            self.energy -= ENERGY_DECAY
+            self.energy -= ENERGY_DECAY * dt
 
         self.body.angular_velocity = 0  # should only spin through net control
 

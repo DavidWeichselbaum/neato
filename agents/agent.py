@@ -31,8 +31,6 @@ class Agent:
         self.possession_outputs = [0.0, 0.0]
 
     def update(self, space):
-        self.body.angular_velocity = 0
-
         self.counter += 1
         if self.counter % NETWORK_EVALUATION_STEP == 0:
 
@@ -57,6 +55,15 @@ class Agent:
             self.body.apply_force_at_local_point(force)
 
             self.energy -= ENERGY_DECAY
+
+        self.body.angular_velocity = 0
+
+        vel = self.body.velocity
+        constant = -DRAG_CONST_COEFF * vel.normalized()
+        linear = -DRAG_LINEAR_COEFF * vel
+        quadratic = -DRAG_QUADRATIC_COEFF * vel * vel.length
+        friction_force = constant + linear + quadratic
+        self.body.apply_force_at_world_point(friction_force, self.body.position)
 
     def get_rangefinder_inputs(self, space):
         inputs = []

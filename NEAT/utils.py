@@ -84,18 +84,31 @@ def create_random_net(
 
 def mutate_net(
     net,
-    add_conn_prob=0.2,
-    add_node_prob=0.1,
-    del_conn_prob=0.05,
-    del_node_prob=0.02,
-    mutate_weight_prob=0.5,
-    mutate_activation_prob=0.1,
-    weight_perturb_std=0.5,
-    weight_range=(-2.0, 2.0),
+
+    global_mutation_prob=5.0,               # Global chance to apply any mutation at all
+
+    mutate_weight_prob=0.9,                 # Chance to mutate weights
+    perturb_prob=0.8,                       # Chance to nudge vs reinitialize weight
+    perturb_std=0.1,                        # Std dev for Gaussian perturbation
+    reset_weight_prob=0.1,                  # Chance to reset weight instead of nudging
+    weight_range=(-2.0, 2.0),               # Bounds for random weights
+
+    mutate_activation_prob=0.1,             # Chance to change a node's activation function
+    activation_change_prob=0.1,             # Chance to mutate each individual node
+
+    add_conn_prob=0.2,                      # Probability to add a connection
+    del_conn_prob=0.2,                      # Probability to delete a connection
+    add_node_prob=0.1,                      # Probability to add a node
+    del_node_prob=0.1,                      # Probability to delete a hidden node
+    add_conn_attempts=30,                   # Attempts to find a valid new connection
+
     activation_choices=None,
     allow_recurrent=False,
     verbose=False,
 ):
+    if random() > global_mutation_prob:
+        return net.copy()
+
     if activation_choices is None:
         activation_choices = list(act_funcs.keys())
 
@@ -110,21 +123,16 @@ def mutate_net(
     input_ids = [n.id for n in nodes if n.is_input or n.is_bias]
     output_ids = [n.id for n in nodes if n.is_output]
     hidden_ids = [nid for nid in node_ids if nid not in input_ids and nid not in output_ids]
-
     non_input_ids = hidden_ids + output_ids
 
     # Mutate weights
     if random() < mutate_weight_prob:
         for c in connections:
-            r = random()
-            if r < 0.6:
-                # No change
-                continue
-            elif r < 0.9:
+            if random() < perturb_prob:
                 old = c.weight
-                c.weight += np.random.normal(0, weight_perturb_std)
+                c.weight += np.random.normal(0, perturb_std)
                 if verbose: print(f"🔧 Nudged weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
-            else:
+            if random() < reset_weight_prob:
                 old = c.weight
                 c.weight = uniform(*weight_range)
                 if verbose: print(f"🎲 Reset weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
@@ -132,8 +140,8 @@ def mutate_net(
     # Mutate activation functions
     if random() < mutate_activation_prob:
         for n in nodes:
-            if not any((n.is_input, n.is_bias, n.is_output)):
-                if random() < 0.1:
+            if not (n.is_input or n.is_bias or n.is_output):
+                if random() < activation_change_prob:
                     old_act = [k for k, v in act_funcs.items() if v == n.activation]
                     new_act = choice(activation_choices)
                     n.activation = act_funcs[new_act]
@@ -141,8 +149,7 @@ def mutate_net(
 
     # Add connection
     if random() < add_conn_prob:
-        attempts = 0
-        while attempts < 30:
+        for _ in range(add_conn_attempts):
             src = choice(node_ids)
             dst = choice(non_input_ids)
             if src != dst and (src, dst) not in con_set:
@@ -152,7 +159,6 @@ def mutate_net(
                     con_set.add((src, dst))
                     if verbose: print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
                     break
-            attempts += 1
 
     # Delete random connection
     if connections and random() < del_conn_prob:

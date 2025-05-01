@@ -91,6 +91,7 @@ def main():
 
         dead_agents, new_agents = env.update_agents()
         env.update_food()
+        env.step(dt)
 
         food_timer += dt
         if food_timer >= FOOD_SPAWN_INTERVAL:
@@ -102,14 +103,15 @@ def main():
             print(f"Agents: {len(env.agents)}, FPS: {clock.get_fps():.1f}")
             info_timer = 0.0
 
-        env.step(dt)
-
         if not env.agents:
             running = False
 
         selected_agent = handle_selected_agent(selected_agent, dead_agents, keys, env, fig, ax)
 
-        env.draw_environment(screen, selected_agent)
+        screen.fill(BACKGROUND_COLOR)
+        env.draw_environment(screen)
+        if selected_agent:
+            selected_agent.draw_annotation(screen, env)
         pygame.display.flip()
 
     pygame.quit()

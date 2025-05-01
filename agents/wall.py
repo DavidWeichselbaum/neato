@@ -1,5 +1,8 @@
 import pymunk
+import pygame
+
 from agents.constants import WALL_COLOR, WALL_SIGHT_COLOR, WALL_THICKNESS
+
 
 class Wall:
     def __init__(self, space, start, end):
@@ -13,3 +16,8 @@ class Wall:
         self.shape.owner = self
 
         space.add(self.shape)
+
+    def draw(self, screen):
+        p1 = int(self.shape.a.x), int(self.shape.a.y)
+        p2 = int(self.shape.b.x), int(self.shape.b.y)
+        pygame.draw.line(screen, self.color, p1, p2, WALL_THICKNESS)

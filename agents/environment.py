@@ -116,74 +116,10 @@ class Environment:
     def step(self, dt):
         self.space.step(dt)
 
-    def draw_environment(self, screen, selected_agent):
-        screen.fill(BACKGROUND_COLOR)
-
-        # Draw walls
+    def draw_environment(self, screen):
         for wall in self.walls:
-            p1 = int(wall.shape.a.x), int(wall.shape.a.y)
-            p2 = int(wall.shape.b.x), int(wall.shape.b.y)
-            pygame.draw.line(screen, wall.color, p1, p2, WALL_THICKNESS)
-
-        # Draw food
+            wall.draw(screen)
         for food in self.foods:
-            pos = int(food.body.position.x), int(food.body.position.y)
-            pygame.draw.circle(screen, food.color, pos, int(food.shape.radius))
-
-        # Draw agents
+            food.draw(screen)
         for agent in self.agents:
-            pos = int(agent.body.position.x), int(agent.body.position.y)
-            pygame.draw.circle(screen, agent.color, pos, AGENT_RADIUS)
-            # Draw facing direction
-            facing = pymunk.Vec2d(math.cos(agent.body.angle), math.sin(agent.body.angle))
-            end = pos[0] + int(facing.x * 20), pos[1] + int(facing.y * 20)
-            pygame.draw.line(screen, FACING_COLOR, pos, end, 2)
-
-        # Draw selected agent's sensors and HUD
-        if selected_agent:
-            pos = int(selected_agent.body.position.x), int(selected_agent.body.position.y)
-            angle_start = selected_agent.body.angle - RANGEFINDER_ANGLE / 2
-            angle_step = RANGEFINDER_ANGLE / (N_RANGEFINDERS - 1)
-            for i in range(N_RANGEFINDERS):
-                angle = angle_start + i * angle_step
-                ray_dir = pymunk.Vec2d(math.cos(angle), math.sin(angle))
-                start = selected_agent.body.position
-                end_point = start + ray_dir * RANGEFINDER_RADIUS
-                hits = self.space.segment_query(start, end_point, 1, pymunk.ShapeFilter())
-                min_end = end_point
-                for hit in hits:
-                    if hit.shape != selected_agent.shape:
-                        min_end = start + ray_dir * (hit.alpha * RANGEFINDER_RADIUS)
-                        break
-                pygame.draw.line(screen, RAY_COLOR, pos, (int(min_end.x), int(min_end.y)), 1)
-
-            # draw force
-            scale = 1
-            end = (pos[0] + selected_agent.body.velocity.x * scale,
-                   pos[1] + selected_agent.body.velocity.y * scale)
-            pygame.draw.line(screen, (255, 255, 0), pos, end, 2)
-
-            # Draw energy bar
-            energy_ratio = selected_agent.energy / MAX_ENERGY
-            pygame.draw.rect(screen, (255, 0, 0), (10, 10, 100, 10))
-            pygame.draw.rect(screen, (0, 255, 0), (10, 10, int(100 * energy_ratio), 10))
-
-            # Draw inputs and outputs
-            font = pygame.font.SysFont(None, 24)
-            y = 30
-            for idx, val in enumerate(selected_agent.last_inputs):
-                input_idx = selected_agent.net.input_ids[idx]
-                input_node = selected_agent.net.node_map[input_idx]
-                input_name = input_node.name
-
-                text = font.render(f'I{idx} | {input_name}: {val:.2f}', True, (0, 255, 255))
-                screen.blit(text, (10, y))
-                y += 20
-            for idx, val in enumerate(selected_agent.last_outputs):
-                output_idx = selected_agent.net.output_ids[idx]
-                output_node = selected_agent.net.node_map[output_idx]
-                output_name = output_node.name
-
-                text = font.render(f'O{idx} | {output_name}: {val:.2f}', True, (255, 0, 255))
-                screen.blit(text, (10, y))
-                y += 20
+            agent.draw(screen)

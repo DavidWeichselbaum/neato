@@ -1,5 +1,8 @@
 import pymunk
+import pygame
+
 from agents.constants import FOOD_COLOR, FOOD_SIGHT_COLOR, FOOD_RADIUS
+
 
 class Food:
     def __init__(self, space, position):
@@ -14,3 +17,7 @@ class Food:
         self.shape.owner = self
 
         space.add(self.body, self.shape)
+
+    def draw(self, screen):
+        pos = int(self.body.position.x), int(self.body.position.y)
+        pygame.draw.circle(screen, self.color, pos, int(self.shape.radius))

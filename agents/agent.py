@@ -1,6 +1,8 @@
-import pymunk
 import math
 import random
+
+import pymunk
+import pygame
 
 from agents.constants import *
 
@@ -13,7 +15,6 @@ class Agent:
         self.body = pymunk.Body(1, pymunk.moment_for_circle(1, 0, AGENT_RADIUS))
         self.body.position = position
         self.body.angle = angle
-        # self.body.damping = 0.9
 
         self.shape = pymunk.Circle(self.body, AGENT_RADIUS)
         self.shape.elasticity = WALL_ELASTICITY
@@ -29,6 +30,15 @@ class Agent:
 
         self.possessed = False
         self.possession_outputs = [0.0, 0.0]
+
+    def draw(self, screen):
+        pos = int(self.body.position.x), int(self.body.position.y)
+        pygame.draw.circle(screen, self.color, pos, AGENT_RADIUS)
+
+        # Draw facing direction
+        facing = pymunk.Vec2d(math.cos(self.body.angle), math.sin(self.body.angle))
+        end = pos[0] + int(facing.x * 20), pos[1] + int(facing.y * 20)
+        pygame.draw.line(screen, FACING_COLOR, pos, end, 2)
 
     def update(self, space):
         self.counter += 1
@@ -56,7 +66,7 @@ class Agent:
 
             self.energy -= ENERGY_DECAY
 
-        self.body.angular_velocity = 0
+        self.body.angular_velocity = 0  # should only spin through net control
 
         vel = self.body.velocity
         constant = -DRAG_CONST_COEFF * vel.normalized()
@@ -92,3 +102,52 @@ class Agent:
             inputs.extend(color)
 
         return inputs
+
+    def draw_annotation(self, screen, env):
+        # Draw selected agent's sensors and HUD
+        pos = int(self.body.position.x), int(self.body.position.y)
+        angle_start = self.body.angle - RANGEFINDER_ANGLE / 2
+        angle_step = RANGEFINDER_ANGLE / (N_RANGEFINDERS - 1)
+        for i in range(N_RANGEFINDERS):
+            angle = angle_start + i * angle_step
+            ray_dir = pymunk.Vec2d(math.cos(angle), math.sin(angle))
+            start = self.body.position
+            end_point = start + ray_dir * RANGEFINDER_RADIUS
+            hits = env.space.segment_query(start, end_point, 1, pymunk.ShapeFilter())
+            min_end = end_point
+            for hit in hits:
+                if hit.shape != self.shape:
+                    min_end = start + ray_dir * (hit.alpha * RANGEFINDER_RADIUS)
+                    break
+            pygame.draw.line(screen, RAY_COLOR, pos, (int(min_end.x), int(min_end.y)), 1)
+
+        # draw force
+        scale = 1
+        end = (pos[0] + self.body.velocity.x * scale,
+               pos[1] + self.body.velocity.y * scale)
+        pygame.draw.line(screen, (255, 255, 0), pos, end, 2)
+
+        # Draw energy bar
+        energy_ratio = self.energy / MAX_ENERGY
+        pygame.draw.rect(screen, (255, 0, 0), (10, 10, 100, 10))
+        pygame.draw.rect(screen, (0, 255, 0), (10, 10, int(100 * energy_ratio), 10))
+
+        # Draw inputs and outputs
+        font = pygame.font.SysFont(None, 24)
+        y = 30
+        for idx, val in enumerate(self.last_inputs):
+            input_idx = self.net.input_ids[idx]
+            input_node = self.net.node_map[input_idx]
+            input_name = input_node.name
+
+            text = font.render(f'I{idx} | {input_name}: {val:.2f}', True, (0, 255, 255))
+            screen.blit(text, (10, y))
+            y += 20
+        for idx, val in enumerate(self.last_outputs):
+            output_idx = self.net.output_ids[idx]
+            output_node = self.net.node_map[output_idx]
+            output_name = output_node.name
+
+            text = font.render(f'O{idx} | {output_name}: {val:.2f}', True, (255, 0, 255))
+            screen.blit(text, (10, y))
+            y += 20

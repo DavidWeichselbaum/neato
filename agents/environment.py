@@ -73,7 +73,7 @@ class Environment:
 
             if agent.energy >= MAX_ENERGY:
                 agent.energy = MAX_ENERGY * 0.5
-                facing = pymunk.Vec2d(math.cos(agent.self.body.angle), math.sin(agent.self.body.angle))
+                facing = pymunk.Vec2d(math.cos(agent.body.angle), math.sin(agent.body.angle))
                 spawn_position = agent.body.position - facing * (AGENT_RADIUS * 4)
 
                 while True:
@@ -84,7 +84,7 @@ class Environment:
                         print(f"Mutation failed due to: {error}")
 
                 energy = MAX_ENERGY * 0.5
-                angle = (agent.self.body.angle + math.pi) % (2 * math.pi)
+                angle = (agent.body.angle + math.pi) % (2 * math.pi)
                 child_agent = Agent(spawn_position, child_net, energy, angle)
                 new_agents.append(child_agent)
 

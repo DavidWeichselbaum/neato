@@ -19,7 +19,7 @@ def main():
 
     env = Environment()
 
-    for _ in range(1):
+    for _ in range(NUM_AGENTS_INITIAL):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
         net = create_random_net(
             n_inputs=N_INPUTS, n_outputs=2, n_hidden=1, n_connections=10,
@@ -31,11 +31,10 @@ def main():
         agent = Agent(start_position, net, energy, facing_angle)
         env.add_agent(agent)
 
-    # for _ in range(NUM_FOOD_INITIAL):
-    #     env.spawn_food()
+    for _ in range(NUM_FOOD_INITIAL):
+        env.spawn_food()
 
     selected_agent = env.agents[0] if env.agents else None
-    selected_agent.possessed = True
     last_selected_net = None
 
     food_timer, info_timer = 0.0, 0.0
@@ -78,10 +77,10 @@ def main():
             for food in eaten:
                 env.remove_food(food)
 
-        # food_timer += dt
-        # if food_timer >= FOOD_SPAWN_INTERVAL:
-        #     env.spawn_food()
-        #     food_timer = 0.0
+        food_timer += dt
+        if food_timer >= FOOD_SPAWN_INTERVAL:
+            env.spawn_food()
+            food_timer = 0.0
 
         info_timer += dt
         if info_timer >= INFO_INTERVAL:

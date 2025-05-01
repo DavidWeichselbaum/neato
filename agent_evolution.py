@@ -10,13 +10,7 @@ from agents.constants import *
 from agents.agent import Agent
 
 
-def main():
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    clock = pygame.time.Clock()
-
-    plt.ion()  # Turn on interactive mode for matplotlib
-    fig, ax = plt.subplots(figsize=(6, 6))
-
+def setup_env():
     env = Environment()
 
     for _ in range(NUM_AGENTS_INITIAL):
@@ -34,48 +28,69 @@ def main():
     for _ in range(NUM_FOOD_INITIAL):
         env.spawn_food()
 
-    selected_agent = env.agents[0] if env.agents else None
-    last_selected_net = None
+    return env
+
+
+def handle_selected_agent(selected_agent, dead_agents, keys, env, fig, ax):
+    if not selected_agent or selected_agent in dead_agents:
+        selected_agent = env.agents[0] if env.agents else None
+
+        ax.clear()
+        if selected_agent:
+            selected_agent.net.get_graph_plot(ax)
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
+    controll_agent(keys, selected_agent)
+    return selected_agent
+
+
+def controll_agent(keys, selected_agent):
+    possession_key = keys[pygame.K_SPACE]
+    forward_key = keys[pygame.K_w]
+    backward_key = keys[pygame.K_s]
+    left_key = keys[pygame.K_a]
+    right_key = keys[pygame.K_d]
+
+    if possession_key:
+        selected_agent.possessed = not selected_agent.possessed
+
+    acceleration = 0.0
+    rotation = 0.0
+    if forward_key:
+        acceleration = 1.0
+    if backward_key:
+        acceleration = -1.0
+    if left_key:
+        rotation = -1.0
+    if right_key:
+        rotation = 1.0
+    selected_agent.possession_outputs = [acceleration, rotation]
+
+
+def main():
+    env = setup_env()
+
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    clock = pygame.time.Clock()
+
+    plt.ion()  # Turn on interactive mode for matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
 
     food_timer, info_timer = 0.0, 0.0
+    selected_agent = None
     running = True
     while running:
         clock.tick(FPS)
         dt = 1.0 / FPS   # fixed simulation timestep
+        keys = pygame.key.get_pressed()
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
         dead_agents, new_agents = env.update_agents()
-
-        keys = pygame.key.get_pressed()
-        possession_key = keys[pygame.K_SPACE]
-        forward_key = keys[pygame.K_w]
-        backward_key = keys[pygame.K_s]
-        left_key = keys[pygame.K_a]
-        right_key = keys[pygame.K_d]
-        if possession_key:
-            selected_agent.possessed = not selected_agent.possessed
-        acceleration = 0.0
-        rotation = 0.0
-        if forward_key:
-            acceleration = 1.0
-        if backward_key:
-            acceleration = -1.0
-        if left_key:
-            rotation = -1.0
-        if right_key:
-            rotation = 1.0
-        selected_agent.possession_outputs = [acceleration, rotation]
-
-        if selected_agent in dead_agents:
-            selected_agent = env.agents[0] if env.agents else None
-
-        for agent in env.agents:
-            eaten = env.check_food_collisions(agent)
-            for food in eaten:
-                env.remove_food(food)
+        env.update_food()
 
         food_timer += dt
         if food_timer >= FOOD_SPAWN_INTERVAL:
@@ -92,12 +107,7 @@ def main():
         if not env.agents:
             running = False
 
-        if selected_agent and (selected_agent.net != last_selected_net):
-            ax.clear()
-            selected_agent.net.get_graph_plot(ax)
-            fig.canvas.draw()
-            fig.canvas.flush_events()
-            last_selected_net = selected_agent.net
+        selected_agent = handle_selected_agent(selected_agent, dead_agents, keys, env, fig, ax)
 
         env.draw_environment(screen, selected_agent)
         pygame.display.flip()

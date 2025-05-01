@@ -15,6 +15,7 @@ class Food:
         self.shape = pymunk.Circle(self.body, FOOD_RADIUS)
         self.shape.sensor = True
         self.shape.owner = self
+        self.age = 0.0
 
         space.add(self.body, self.shape)
 

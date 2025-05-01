@@ -81,7 +81,7 @@ def print_infos(env, clock, simulation_seconds, start_time):
 
 def simulation_step(dt, env, food_timer):
     dead_agents, new_agents = env.update_agents(dt)
-    env.update_food()
+    env.update_food(dt)
     env.step(dt)
 
     food_timer += dt

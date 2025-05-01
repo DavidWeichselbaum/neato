@@ -32,6 +32,7 @@ ENERGY_PER_FOOD = 25.0
 FOOD_SPAWN_INTERVAL = 0.1  # seconds simulation time
 FOOD_RADIUS = 5
 FOOD_MIN_DIST = 50
+FOOD_MAX_AGE = 60  # seconds
 
 # Walls
 NUM_WALLS = 50

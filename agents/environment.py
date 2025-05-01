@@ -98,10 +98,15 @@ class Environment:
 
         return dead_agents, new_agents
 
-    def update_food(self):
+    def update_food(self, dt):
         for agent in self.agents:
             eaten = self.check_food_collisions(agent)
             for food in eaten:
+                self.remove_food(food)
+
+        for food in self.foods:
+            food.age += dt
+            if food.age > FOOD_MAX_AGE:
                 self.remove_food(food)
 
     def check_food_collisions(self, agent):

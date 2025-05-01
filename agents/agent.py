@@ -6,14 +6,13 @@ from agents.constants import *
 
 
 class Agent:
-    def __init__(self, position, net, energy, facing_angle):
+    def __init__(self, position, net, energy, angle):
         self.net = net
         self.energy = energy
-        self.facing_angle = facing_angle
 
         self.body = pymunk.Body(1, pymunk.moment_for_circle(1, 0, AGENT_RADIUS))
         self.body.position = position
-        self.body.angle = self.facing_angle
+        self.body.angle = angle
         # self.body.damping = 0.9
 
         self.shape = pymunk.Circle(self.body, AGENT_RADIUS)
@@ -27,13 +26,12 @@ class Agent:
         self.counter = 0
         self.last_inputs = []
         self.last_outputs = []
-        self.last_force = None
 
         self.possessed = False
         self.possession_outputs = [0.0, 0.0]
 
     def update(self, space):
-        print(f"Body angle: {self.body.angle:.2f}, Facing angle: {self.facing_angle:.2f}")
+        self.body.angular_velocity = 0
 
         self.counter += 1
         if self.counter % NETWORK_EVALUATION_STEP == 0:
@@ -52,24 +50,18 @@ class Agent:
             turn = outputs[1]
             turn = min(1.0, max(-1.0, turn))
 
-            self.facing_angle += turn * TURN_SPEED * (1.0 / FPS)
+            self.body.angle += turn * TURN_SPEED * (1.0 / FPS)
 
-            forward = pymunk.Vec2d(math.cos(self.facing_angle), math.sin(self.facing_angle))
-
-            force = forward * thrust * AGENT_FORCE * (1.0 / FPS)
+            direction = pymunk.Vec2d(1, 0) * (1.0 / FPS)
+            force = direction * thrust * AGENT_FORCE
             self.body.apply_force_at_local_point(force)
-            self.last_force = force
-
-            # CRITICAL: reset rotation
-            self.body.angle = self.facing_angle
-            self.body.angular_velocity = 0
 
             self.energy -= ENERGY_DECAY
 
     def get_rangefinder_inputs(self, space):
         inputs = []
-        angle_start = self.facing_angle - math.pi / 2
-        angle_step = math.pi / (N_RANGEFINDERS - 1)
+        angle_start = self.body.angle - RANGEFINDER_ANGLE / 2
+        angle_step = RANGEFINDER_ANGLE / (N_RANGEFINDERS - 1)
 
         for i in range(N_RANGEFINDERS):
             angle = angle_start + i * angle_step

@@ -13,6 +13,7 @@ ENERGY_DECAY = 0.1 * NETWORK_EVALUATION_STEP
 ENERGY_PER_FOOD = 25.0
 N_RANGEFINDERS = 3
 RANGEFINDER_RADIUS = 150
+RANGEFINDER_ANGLE = 100
 N_INPUTS = N_RANGEFINDERS * 4  # distance, red, green, blue
 INPUT_NAMES = [[f"D{i}", f"R{i}", f"G{i}", f"B{i}"] for i in range(N_RANGEFINDERS)]
 INPUT_NAMES = [name for group in INPUT_NAMES for name in group]

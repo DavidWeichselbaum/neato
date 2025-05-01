@@ -73,7 +73,7 @@ class Environment:
 
             if agent.energy >= MAX_ENERGY:
                 agent.energy = MAX_ENERGY * 0.5
-                facing = pymunk.Vec2d(math.cos(agent.facing_angle), math.sin(agent.facing_angle))
+                facing = pymunk.Vec2d(math.cos(agent.self.body.angle), math.sin(agent.self.body.angle))
                 spawn_position = agent.body.position - facing * (AGENT_RADIUS * 4)
 
                 while True:
@@ -84,8 +84,8 @@ class Environment:
                         print(f"Mutation failed due to: {error}")
 
                 energy = MAX_ENERGY * 0.5
-                facing_angle = (agent.facing_angle + math.pi) % (2 * math.pi)
-                child_agent = Agent(spawn_position, child_net, energy, facing_angle)
+                angle = (agent.self.body.angle + math.pi) % (2 * math.pi)
+                child_agent = Agent(spawn_position, child_net, energy, angle)
                 new_agents.append(child_agent)
 
             agent.update(self.space)
@@ -129,15 +129,15 @@ class Environment:
             pos = int(agent.body.position.x), int(agent.body.position.y)
             pygame.draw.circle(screen, agent.color, pos, AGENT_RADIUS)
             # Draw facing direction
-            facing = pymunk.Vec2d(math.cos(agent.facing_angle), math.sin(agent.facing_angle))
+            facing = pymunk.Vec2d(math.cos(agent.body.angle), math.sin(agent.body.angle))
             end = pos[0] + int(facing.x * 20), pos[1] + int(facing.y * 20)
             pygame.draw.line(screen, FACING_COLOR, pos, end, 2)
 
         # Draw selected agent's sensors and HUD
         if selected_agent:
             pos = int(selected_agent.body.position.x), int(selected_agent.body.position.y)
-            angle_start = selected_agent.facing_angle - math.pi / 2
-            angle_step = math.pi / (N_RANGEFINDERS - 1)
+            angle_start = selected_agent.body.angle - RANGEFINDER_ANGLE / 2
+            angle_step = RANGEFINDER_ANGLE / (N_RANGEFINDERS - 1)
             for i in range(N_RANGEFINDERS):
                 angle = angle_start + i * angle_step
                 ray_dir = pymunk.Vec2d(math.cos(angle), math.sin(angle))
@@ -152,10 +152,10 @@ class Environment:
                 pygame.draw.line(screen, RAY_COLOR, pos, (int(min_end.x), int(min_end.y)), 1)
 
             # draw force
-            SCALE_FORCE_VISUAL = 1  # tweak this to look nice
-            force_end = (pos[0] + selected_agent.last_force.x * SCALE_FORCE_VISUAL,
-                         pos[1] + selected_agent.last_force.y * SCALE_FORCE_VISUAL)
-            pygame.draw.line(screen, (255, 255, 0), pos, force_end, 2)
+            scale = 1
+            end = (pos[0] + selected_agent.body.velocity.x * scale,
+                   pos[1] + selected_agent.body.velocity.y * scale)
+            pygame.draw.line(screen, (255, 255, 0), pos, end, 2)
 
             # Draw energy bar
             energy_ratio = selected_agent.energy / MAX_ENERGY

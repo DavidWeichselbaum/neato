@@ -65,9 +65,9 @@ def main():
         if backward_key:
             acceleration = -1.0
         if left_key:
-            rotation = 1.0
-        if right_key:
             rotation = -1.0
+        if right_key:
+            rotation = 1.0
         selected_agent.possession_outputs = [acceleration, rotation]
 
         if selected_agent in dead_agents:

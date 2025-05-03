@@ -42,7 +42,7 @@ def setup_env():
         env.add_agent(agent)
 
     for _ in range(NUM_FOOD_INITIAL):
-        env.spawn_food()
+        env.spawn_food(age=FOOD_INITIAL_AGE)
 
     return env
 

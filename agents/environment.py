@@ -44,7 +44,7 @@ class Environment:
             wall = Wall(self.space, a, b)
             self.walls.append(wall)
 
-    def spawn_food(self):
+    def spawn_food(self, age=0.0):
         pos = random.randint(20, WIDTH - 20), random.randint(20, HEIGHT - 20)
         food = Food(self.space, pos)
         self.foods.append(food)

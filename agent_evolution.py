@@ -156,15 +156,11 @@ def visualization_step(screen, env, infos, fig, ax):
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            infos.running = False
+            raise KeyboardInterrupt
 
 
-def main():
+def main(screen, fig, ax):
     env = setup_env()
-
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    plt.ion()  # Turn on interactive mode for matplotlib
-    fig, ax = plt.subplots(figsize=(6, 6))
 
     infos = init_info_object()
 
@@ -175,9 +171,16 @@ def main():
 
         visualization_step(screen, env, infos, fig, ax)
 
-    pygame.quit()
-    plt.close(fig)
 
 if __name__ == "__main__":
     pygame.init()
-    main()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    plt.ion()  # Turn on interactive mode for matplotlib
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    while True:
+        main(screen, fig, ax)
+        print("Restarting simulation")
+
+    pygame.quit()
+    plt.close(fig)

@@ -23,6 +23,8 @@ def act_square(x): return x**2
 @njit
 def act_softplus(x): return math.log1p(math.exp(x))
 
+
+# has to be mirrored in evaluate_network() because of numba not able to use dynmically asigned functions
 act_funcs = {
     'linear': act_linear,
     'tanh': act_tanh,
@@ -33,8 +35,10 @@ act_funcs = {
     'softplus': act_softplus,
 }
 
+
 @njit
-def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order, input_indices, input_vals, output_indices):
+def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order,
+                     input_indices, input_vals, output_indices, bias_arr):
     n_nodes = len(node_func_ids)
     n_conns = len(conn_out)
     values = np.zeros(n_nodes)
@@ -62,6 +66,8 @@ def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order, 
                 src = conn_in[j]
                 total += values[src] * conn_weight[j]
 
+        total += bias_arr[idx]
+
         act_id = node_func_ids[idx]
         if act_id == 0:
             values[idx] = act_linear(total)
@@ -78,31 +84,26 @@ def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order, 
         elif act_id == 6:
             values[idx] = act_softplus(total)
         else:
-            values[idx] = 0.0
+            raise ValueError
 
     return values[output_indices]
 
 
 class Node:
-
-    def __init__(self, node_id, is_input=False, is_output=False, is_bias=False, activation='linear', name=None):
+    def __init__(self, node_id, is_input=False, is_output=False, activation='linear', name=None, bias=0.0):
         self.id = node_id
         self.is_input = is_input
         self.is_output = is_output
-        self.is_bias = is_bias
         self.activation_name = activation
         self.activation = act_funcs[activation]
+        self.bias = bias
         self.name = name
-
-        if self.is_bias:
-            self.activation = lambda x: 1
-            self.activation_name = 'bias'
 
     def activate(self, input_):
         if isinstance(input_, np.ndarray):
-            return np.array([self.activation(x) for x in input_])
+            return np.array([self.activation(x + self.bias) for x in input_])
         else:
-            return self.activation(input_)
+            return self.activation(input_ + self.bias)
 
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
@@ -135,6 +136,7 @@ class NEATNetwork:
         self.conn_out = np.array([self.node_index[c.out_node] for c in self.connections], dtype=np.int32)
         self.conn_weight = np.array([c.weight for c in self.connections], dtype=np.float32)
         self.node_map = {n.id: n for n in nodes}
+        self.bias_arr = np.array([self.node_map[nid].bias for nid in self.node_ids], dtype=np.float32)
         self.input_ids = [n.id for n in nodes if n.is_input]
         self.output_ids = [n.id for n in nodes if n.is_output]
 
@@ -209,7 +211,8 @@ class NEATNetwork:
             self.exec_order_arr,
             self.input_idx_arr,
             np.array(inputs),
-            self.output_idx_arr
+            self.output_idx_arr,
+            self.bias_arr
         )
 
     def visualize(self):
@@ -226,10 +229,13 @@ class NEATNetwork:
         for nid in self.node_ids:
             node = self.node_map[nid]
             G.add_node(nid)
+
+            label = f"{nid}"
             if node.name:
-                node_labels[nid] = f"{nid} {node.name}"
-            else:
-                node_labels[nid] = f"{nid}"
+                label += f" {node.name}"
+            bias_str = f"{node.bias:.1e}"
+            label += f"\n{node.activation_name} ({bias_str})"
+            node_labels[nid] = label
 
             # Layout
             level = self.id_to_layer.get(nid, 0)
@@ -240,16 +246,13 @@ class NEATNetwork:
             positions[nid] = position
 
             # Color
-            if node.is_bias:
-                node_colors.append('yellow')
-            elif node.is_input:
-                node_colors.append('green')
+            if node.is_input:
+                node_colors.append('springgreen')
             elif node.is_output:
                 node_colors.append('skyblue')
             else:
                 node_colors.append('lightgray')
 
-        # Draw main graph
         edge_colors = []
         edge_labels = {}
         for c in self.connections:
@@ -257,19 +260,19 @@ class NEATNetwork:
             edge_colors.append('red' if c.weight < 0 else 'blue')
             edge_labels[(c.in_node, c.out_node)] = f"{c.weight:.2f}"
 
-        nx.draw(G, positions, ax=ax, labels=node_labels, with_labels=True,
-                node_color=node_colors, edgecolors='black', node_size=600,
-                edge_color=edge_colors, arrows=True, font_size=6)
+        nx.draw(
+            G, positions, ax=ax, labels=node_labels, with_labels=True,
+            node_color=node_colors, edgecolors='black', node_size=600,
+            edge_color=edge_colors, arrows=True, font_size=6
+        )
 
-        nx.draw_networkx_edge_labels(G, positions, edge_labels=edge_labels,
-                                     font_size=6, font_color='black', ax=ax)
+        nx.draw_networkx_edge_labels(
+            G, positions, edge_labels=edge_labels,
+            font_size=6, font_color='black', ax=ax
+        )
 
-        # Inline activation plots
         for nid in self.node_ids:
             node = self.node_map[nid]
-            if node.is_bias:
-                continue  # skip plotting for bias node
-
             pos = positions[nid]
             x0, y0 = pos
 

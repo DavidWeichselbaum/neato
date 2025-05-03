@@ -3,6 +3,7 @@ import random
 
 import pymunk
 import pygame
+import numpy as np
 
 from agents.constants import *
 
@@ -44,8 +45,10 @@ class Agent:
         self.counter += 1
         thrust = 0.0
         if self.counter % NETWORK_EVALUATION_STEP == 0:
+            rangefinder_inputs = self.get_rangefinder_inputs(space)
+            random_inputs = self.get_random_input()
+            inputs = rangefinder_inputs + random_inputs
 
-            inputs = self.get_rangefinder_inputs(space)
             outputs = self.net.activate(inputs)
             self.last_inputs = inputs
             self.last_outputs = outputs
@@ -107,6 +110,9 @@ class Agent:
             inputs.extend(color)
 
         return inputs
+
+    def get_random_input(self):
+        return [np.random.normal()]
 
     def draw_annotation(self, screen, env):
         # Draw selected agent's sensors and HUD

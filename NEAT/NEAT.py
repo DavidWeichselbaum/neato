@@ -124,7 +124,7 @@ class NEATNetwork:
         self.connections = connections
 
         self.node_ids = [n.id for n in nodes]
-        if self.detect_cycles(self.connections, self.node_ids):
+        if self.detect_cycles():
             raise ValueError("Network is not a directed acyclic graph")
 
         # for activation
@@ -150,9 +150,9 @@ class NEATNetwork:
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
 
-    def detect_cycles(self, connections, node_ids):
+    def detect_cycles(self):
         adj = defaultdict(list)
-        for c in connections:
+        for c in self.connections:
             adj[c.in_node].append(c.out_node)
 
         visited = set()
@@ -171,7 +171,7 @@ class NEATNetwork:
             stack.remove(nid)
             return False
 
-        for nid in node_ids:
+        for nid in self.node_ids:
             if dfs(nid):
                 return True
         return False

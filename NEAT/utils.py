@@ -1,3 +1,5 @@
+from collections import defaultdict, deque
+
 import numpy as np
 from copy import deepcopy
 from random import random, choice, uniform
@@ -82,6 +84,55 @@ def create_random_net(
     return NEATNetwork(nodes, conn_objs)
 
 
+def creates_cycle(connections, src, dst):
+    adj = defaultdict(list)
+    for c in connections:
+        adj[c.in_node].append(c.out_node)
+
+    # Simulate the new edge
+    adj[src].append(dst)
+
+    visited = set()
+    stack = deque([dst])
+    while stack:
+        node = stack.pop()
+        if node == src:
+            return True  # Cycle detected
+        if node not in visited:
+            visited.add(node)
+            stack.extend(adj[node])
+    return False
+
+
+def reachable_from_inputs(nodes, connections, input_ids):
+    adj = defaultdict(list)
+    for c in connections:
+        adj[c.in_node].append(c.out_node)
+    visited = set(input_ids)
+    stack = list(input_ids)
+    while stack:
+        n = stack.pop()
+        for neighbor in adj[n]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                stack.append(neighbor)
+    return visited
+
+def reaches_outputs(nodes, connections, output_ids):
+    rev_adj = defaultdict(list)
+    for c in connections:
+        rev_adj[c.out_node].append(c.in_node)
+    visited = set(output_ids)
+    stack = list(output_ids)
+    while stack:
+        n = stack.pop()
+        for neighbor in rev_adj[n]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                stack.append(neighbor)
+    return visited
+
+
 def mutate_net(
     net,
 
@@ -104,6 +155,7 @@ def mutate_net(
 
     activation_choices=None,
     allow_recurrent=False,
+    prune_unused=True,
     verbose=False,
 ):
     if random() > global_mutation_prob:
@@ -153,11 +205,12 @@ def mutate_net(
             src = choice(node_ids)
             dst = choice(non_input_ids)
             if src != dst and (src, dst) not in con_set:
-                if allow_recurrent or src < dst:
+                if allow_recurrent or not creates_cycle(connections, src, dst):
                     w = uniform(*weight_range)
                     connections.append(Connection(src, dst, w))
                     con_set.add((src, dst))
-                    if verbose: print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
+                    if verbose:
+                        print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
                     break
 
     # Delete random connection
@@ -185,5 +238,33 @@ def mutate_net(
         removed_conns = [c for c in connections if c.in_node == nid or c.out_node == nid]
         connections = [c for c in connections if c.in_node != nid and c.out_node != nid]
         if verbose: print(f"🗑️ Removed node {nid} and {len(removed_conns)} connected links")
+
+    # Prune unreachable or unused nodes
+    if prune_unused:
+        reachable = reachable_from_inputs(nodes, connections, input_ids)
+        contributing = reaches_outputs(nodes, connections, output_ids)
+        active_nodes = reachable & contributing
+
+        post_pruning_nodes = [
+            n for n in nodes if (
+                n.id in active_nodes or
+                n.is_input or
+                n.is_output or
+                n.is_bias
+            )
+        ]
+        post_pruning_ids = {n.id for n in post_pruning_nodes}
+        if post_pruning_ids != set(node_ids):
+            post_pruning_connections = [
+                c for c in connections if c.in_node in post_pruning_ids and c.out_node in post_pruning_ids
+            ]
+
+            if verbose:
+                n_pruned_nodes = len(nodes) - len(post_pruning_nodes)
+                n_pruned_connections = len(connections) - len(post_pruning_connections)
+                print(f"🧹 Pruned {n_pruned_nodes} nodes and {n_pruned_connections} connections")
+
+            nodes = post_pruning_nodes
+            connections = post_pruning_connections
 
     return NEATNetwork(nodes, connections)

@@ -25,7 +25,8 @@ INPUT_NAMES = [name for group in INPUT_NAMES for name in group]
 OUTPUT_NAMES = ["A", "R"]  # accelerate, rotate
 
 MAX_ENERGY = 100.0
-ENERGY_DECAY = 6.0 * NETWORK_EVALUATION_STEP
+ENERGY_DECAY = 3.0  # constant over time
+ENERGY_THRUST = 50  # scales with the square of thrust
 ENERGY_PER_FOOD = 25.0
 
 # Food

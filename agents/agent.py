@@ -42,6 +42,7 @@ class Agent:
 
     def update(self, space, dt):
         self.counter += 1
+        thrust = 0.0
         if self.counter % NETWORK_EVALUATION_STEP == 0:
 
             inputs = self.get_rangefinder_inputs(space)
@@ -64,10 +65,14 @@ class Agent:
             force = direction * thrust * AGENT_FORCE * dt
             self.body.apply_force_at_local_point(force)
 
-            self.energy -= ENERGY_DECAY * dt
+        # energy costs
+        self.energy -= ENERGY_DECAY * dt
+        self.energy -= thrust ** 2 * ENERGY_THRUST * dt
 
-        self.body.angular_velocity = 0  # should only spin through net control
+        # should only spin through net control
+        self.body.angular_velocity = 0
 
+        # drag
         vel = self.body.velocity
         constant = -DRAG_CONST_COEFF * vel.normalized()
         linear = -DRAG_LINEAR_COEFF * vel

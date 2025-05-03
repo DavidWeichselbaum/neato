@@ -74,7 +74,8 @@ def handle_selected_agent(env, infos, keys, fig, ax):
         fig.canvas.draw()
         fig.canvas.flush_events()
 
-    controll_agent(keys, infos.selected_agent)
+    if infos.selected_agent:
+        controll_agent(keys, infos.selected_agent)
 
 
 def controll_agent(keys, selected_agent):

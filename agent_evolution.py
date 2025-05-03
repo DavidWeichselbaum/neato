@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from time import time
 
 import pygame
+import numpy as np
 import matplotlib.pyplot as plt
 from datetime import timedelta
 
@@ -26,6 +27,12 @@ class Info():
     simulation_seconds: float
     clock: pygame.time.Clock
 
+
+def random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+
+
 def setup_env():
     env = Environment()
 
@@ -45,7 +52,6 @@ def setup_env():
         env.spawn_food(age=FOOD_INITIAL_AGE)
 
     return env
-
 
 
 def init_info_object():
@@ -114,7 +120,6 @@ def print_infos(env, infos):
         print(f"Sim time: {simulation_time}    Wall time: {wall_time}    FPS: {visualization_FPS:.1f}    Agents: {n_agents}    Food: {n_foods}")
 
 
-
 def simulation_step(env, infos):
     dead_agents, new_agents = env.update_agents(infos.dt)
     if not env.agents:
@@ -177,6 +182,8 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     plt.ion()  # Turn on interactive mode for matplotlib
     fig, ax = plt.subplots(figsize=(6, 6))
+
+    random_seed(1)
 
     while True:
         main(screen, fig, ax)

@@ -21,9 +21,10 @@ RANGEFINDER_ANGLE = 100
 NETWORK_EVALUATION_STEP = 1
 INPUT_NAMES = [[f"dist {i}", f"red {i}", f"green {i}", f"blue {i}"] for i in range(N_RANGEFINDERS)]
 INPUT_NAMES = [name for group in INPUT_NAMES for name in group]
-INPUT_NAMES += ["rand"]
+INPUT_NAMES += ["rand", "energy", "dir", "speed"]
 N_INPUTS = len(INPUT_NAMES)
-OUTPUT_NAMES = ["accel", "rot", "repr", "ratio"]  # accelerate, rotate, reproduction energy threshold, ratio of energy for offspring
+SPEED_INPUT_SCALE = 20
+OUTPUT_NAMES = ["accel", "rot", "repro", "ratio"]  # accelerate, rotate, reproduction energy threshold, ratio of energy for offspring
 N_OUTPUTS = len(OUTPUT_NAMES)
 
 MAX_ENERGY = 100.0

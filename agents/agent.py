@@ -40,7 +40,7 @@ class Agent:
         pygame.draw.circle(screen, self.color, pos, AGENT_RADIUS)
 
         # Draw facing direction
-        facing = pymunk.Vec2d(math.cos(self.body.angle), math.sin(self.body.angle))
+        facing = self.get_facing_vector()
         end = pos[0] + int(facing.x * 20), pos[1] + int(facing.y * 20)
         pygame.draw.line(screen, FACING_COLOR, pos, end, 2)
 
@@ -50,14 +50,16 @@ class Agent:
         if self.counter % NETWORK_EVALUATION_STEP == 0:
             rangefinder_inputs = self.get_rangefinder_inputs(space)
             random_inputs = self.get_random_input()
-            inputs = rangefinder_inputs + random_inputs
+            energy_inputs = self.get_energy_inputs()
+            movement_inputs = self.get_movment_inputs()
+            inputs = rangefinder_inputs + random_inputs + energy_inputs + movement_inputs
 
             outputs = self.net.activate(inputs)
             self.last_inputs = inputs
             self.last_outputs = outputs
 
             if self.possessed:
-                outputs = self.possession_outputs
+                outputs[:len(self.possession_outputs)] = self.possession_outputs
                 self.energy = MAX_ENERGY / 2
 
             thrust, turn, repr_threshold, repr_ratio = outputs[0], outputs[1], outputs[2], outputs[3]
@@ -121,13 +123,32 @@ class Agent:
     def get_random_input(self):
         return [np.random.normal()]
 
+    def get_energy_inputs(self):
+        return [self.energy / MAX_ENERGY]
+
+    def get_movment_inputs(self):
+        velocity = self.body.velocity
+        speed = velocity.length
+
+        # Angle between facing and velocity, signed
+        facing = self.get_facing_vector()
+        angle = facing.get_angle_between(velocity)
+
+        movement_angle = angle / math.pi  # Angle in [-1, 1]
+        movement_speed = speed / (speed + SPEED_INPUT_SCALE)  # Speed in [0, 1]
+
+        return [movement_angle, movement_speed]
+
+    def get_facing_vector(self):
+        return pymunk.Vec2d(1, 0).rotated(self.body.angle)
+
     def reproduce(self):
         child_net = mutate_net(self.net)
 
         child_energy = self.energy * self.reproduction_energy_ratio
         self.energy -= child_energy
 
-        facing = pymunk.Vec2d(math.cos(self.body.angle), math.sin(self.body.angle))
+        facing = self.get_facing_vector()
         child_angle = (self.body.angle + math.pi) % (2 * math.pi)
         spawn_position = self.body.position - facing * (AGENT_RADIUS * 4)
 

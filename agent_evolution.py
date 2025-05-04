@@ -113,7 +113,8 @@ def print_infos(env, infos):
         visualization_FPS = infos.clock.get_fps()
         simulation_time = timedelta(seconds=int(infos.simulation_seconds))
         wall_time = timedelta(seconds=int(time() - infos.start_time))
-        print(f"Sim time: {simulation_time}    Wall time: {wall_time}    FPS: {visualization_FPS:.1f}    Agents: {n_agents}    Food: {n_foods}")
+        n_average_neurons = sum([len(agent.net.nodes) for agent in env.agents]) / len(env.agents)
+        print(f"Sim time: {simulation_time}    Wall time: {wall_time}    FPS: {visualization_FPS:.1f}    Agents: {n_agents}    Avrg Neurons: {n_average_neurons:.1f}    Food: {n_foods}")
 
 
 def simulation_step(env, infos):

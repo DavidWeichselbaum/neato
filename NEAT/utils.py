@@ -254,7 +254,6 @@ def duplicate_subnet_with_scaled_outputs(nodes, connections, input_ids, output_i
     return nodes + new_nodes, connections + new_connections
 
 
-
 def mutate_net(
     net,
 
@@ -271,13 +270,12 @@ def mutate_net(
     reset_bias_prob=0.05,
     bias_range=(-1.0, 1.0),
 
-    mutate_activation_prob=0.1,
     activation_change_prob=0.1,
 
-    add_conn_prob=0.2,
-    del_conn_prob=0.2,
-    add_node_prob=0.1,
-    del_node_prob=0.1,
+    add_conn_prob=0.5,
+    del_conn_prob=0.5,
+    add_node_prob=0.5,
+    del_node_prob=0.5,
     add_conn_attempts=30,
 
     duplication_prob=0.05,
@@ -287,8 +285,9 @@ def mutate_net(
     activation_choices=None,
     allow_recurrent=False,
     prune_unused=True,
-    verbose=False,
+    verbose=False
 ):
+
     if random() < global_mutation_prob:
         return net.copy()
 
@@ -308,93 +307,125 @@ def mutate_net(
     hidden_ids = [nid for nid in node_ids if nid not in input_ids and nid not in output_ids]
     non_input_ids = hidden_ids + output_ids
 
-    # Mutate connection weights
-    if random() < mutate_weight_prob:
-        for c in connections:
-            if random() < perturb_prob:
-                old = c.weight
-                c.weight += np.random.normal(0, perturb_std)
-                if verbose: print(f"🔧 Nudged weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
-            if random() < reset_weight_prob:
-                old = c.weight
-                c.weight = uniform(*weight_range)
-                if verbose: print(f"🎲 Reset weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
+    mutate_connection_weights(connections, mutate_weight_prob, perturb_prob, perturb_std,
+                              reset_weight_prob, weight_range, verbose)
 
-    # Mutate node biases
-    if random() < mutate_bias_prob:
-        for n in nodes:
-            if not n.is_input:
-                if random() < perturb_prob:
-                    old = n.bias
-                    n.bias += np.random.normal(0, perturb_bias_std)
-                    if verbose: print(f"⚙️ Nudged bias {old:.3f} -> {n.bias:.3f} on node {n.id}")
-                if random() < reset_bias_prob:
-                    old = n.bias
-                    n.bias = uniform(*bias_range)
-                    if verbose: print(f"🎯 Reset bias {old:.3f} -> {n.bias:.3f} on node {n.id}")
+    mutate_node_biases(nodes, mutate_bias_prob, perturb_prob, perturb_bias_std,
+                       reset_bias_prob, bias_range, verbose)
 
-    # Mutate activation functions
-    if random() < mutate_activation_prob:
-        for n in nodes:
-            if not n.is_input and not n.is_output:
-                if random() < activation_change_prob:
-                    old_act = n.activation_name
-                    new_act = choice(activation_choices)
-                    n.activation = act_funcs[new_act]
-                    n.activation_name = new_act
-                    if verbose: print(f"⚡ Changed activation of node {n.id} from {old_act} to {new_act}")
+    mutate_activations(nodes, activation_change_prob, activation_choices, verbose)
 
-    # Add connection
-    if random() < add_conn_prob:
-        for _ in range(add_conn_attempts):
-            src = choice(node_ids)
-            dst = choice(non_input_ids)
-            if src != dst and (src, dst) not in con_set:
-                if allow_recurrent or not creates_cycle(connections, src, dst):
-                    # w = uniform(*weight_range)
-                    w = np.random.normal(0, perturb_bias_std)
-                    connections.append(Connection(src, dst, w))
-                    con_set.add((src, dst))
-                    if verbose:
-                        print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
-                    break
+    add_random_connection(connections, node_ids, non_input_ids, con_set, add_conn_prob,
+                          allow_recurrent, perturb_bias_std, verbose)
 
-    # Delete random connection
-    if connections and random() < del_conn_prob:
-        c = choice(connections)
-        connections.remove(c)
-        if verbose: print(f"❌ Removed connection {c.in_node} -> {c.out_node}")
+    delete_random_connection(connections, node_ids, del_conn_prob, verbose)
 
-    # Add node
-    if random() < add_node_prob and connections:
-        c = choice(connections)
-        connections.remove(c)
-        new_act = choice(activation_choices)
-        new_bias = uniform(*bias_range)
-        new_node = Node(max_node_id, activation=new_act, bias=new_bias)
-        nodes.append(new_node)
-        connections.append(Connection(c.in_node, new_node.id, 1.0))
-        connections.append(Connection(new_node.id, c.out_node, c.weight))
-        if verbose: print(f"✨ Split connection {c.in_node}->{c.out_node} with new node {new_node.id} ({new_act}) bias={new_bias:.3f}")
-        max_node_id += 1
+    nodes, connections, max_node_id = add_node_split(nodes, connections, node_ids, add_node_prob,
+                                                     activation_choices, bias_range,
+                                                     max_node_id, verbose)
 
-    # Delete hidden node
-    if hidden_ids and random() < del_node_prob:
-        nid = choice(hidden_ids)
-        nodes = [n for n in nodes if n.id != nid]
-        removed_conns = [c for c in connections if c.in_node == nid or c.out_node == nid]
-        connections = [c for c in connections if c.in_node != nid and c.out_node != nid]
-        if verbose: print(f"🗑️ Removed node {nid} and {len(removed_conns)} connected links")
+    nodes, connections = delete_hidden_node(nodes, connections, hidden_ids,
+                                            del_node_prob, verbose)
 
-    # duplicate random subnet
     if random() < duplication_prob:
         nodes, connections = duplicate_subnet_with_scaled_outputs(
             nodes, connections, input_ids, output_ids,
-            node_pick_prob=node_pick_prob, max_subnet_size=max_subnet_size, verbose=verbose
+            node_pick_prob=node_pick_prob,
+            max_subnet_size=max_subnet_size, verbose=verbose
         )
 
-    # Prune unreachable or unused nodes
     if prune_unused:
         nodes, connections = prune_unused_nodes(nodes, connections)
 
     return NEATNetwork(nodes, connections)
+
+
+def mutate_connection_weights(connections, mutate_prob, perturb_prob, std, reset_prob, weight_range, verbose):
+    for c in connections:  # scale wit number of connections
+        if random() < mutate_prob:
+            if random() < perturb_prob:
+                old = c.weight
+                c.weight += np.random.normal(0, std)
+                if verbose: print(f"🔧 Nudged weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
+            if random() < reset_prob:
+                old = c.weight
+                c.weight = uniform(*weight_range)
+                if verbose: print(f"🎲 Reset weight {old:.3f} -> {c.weight:.3f} for conn {c.in_node}->{c.out_node}")
+
+
+def mutate_node_biases(nodes, mutate_prob, perturb_prob, std, reset_prob, bias_range, verbose):
+    for n in nodes:  # scale with number of nodes
+        if not n.is_input and random() < mutate_prob:
+            if random() < perturb_prob:
+                old = n.bias
+                n.bias += np.random.normal(0, std)
+                if verbose: print(f"⚙️ Nudged bias {old:.3f} -> {n.bias:.3f} on node {n.id}")
+            if random() < reset_prob:
+                old = n.bias
+                n.bias = uniform(*bias_range)
+                if verbose: print(f"🎯 Reset bias {old:.3f} -> {n.bias:.3f} on node {n.id}")
+
+
+def mutate_activations(nodes, change_prob, activation_choices, verbose):
+    for n in nodes:  # scale with number of nodes
+        if not n.is_input and not n.is_output and random() < change_prob:
+            old_act = n.activation_name
+            new_act = choice(activation_choices)
+            n.activation = act_funcs[new_act]
+            n.activation_name = new_act
+            if verbose: print(f"⚡ Changed activation of node {n.id} from {old_act} to {new_act}")
+
+
+def add_random_connection(connections, node_ids, non_input_ids, con_set,
+                          add_prob, allow_recurrent, std, verbose):
+    for src in node_ids:  # scale with number of nodes
+        if random() < add_prob:
+            dst = choice(non_input_ids)
+            if src == dst or (src, dst) in con_set:
+                continue
+            if allow_recurrent or not creates_cycle(connections, src, dst):
+                w = np.random.normal(0, std)
+                connections.append(Connection(src, dst, w))
+                con_set.add((src, dst))
+                if verbose:
+                    print(f"➕ Added connection {src} -> {dst} with weight {w:.3f}")
+                break
+
+
+def delete_random_connection(connections, node_ids, prob, verbose):
+    for nid in node_ids:  # scale with number of nodes
+        if random() < prob:
+            conns = [c for c in connections if c.in_node == nid or c.out_node == nid]
+            if conns:
+                c = choice(conns)
+                connections.remove(c)
+                if verbose: print(f"❌ Removed connection {c.in_node} -> {c.out_node}")
+                break
+
+
+def add_node_split(nodes, connections, node_ids, prob, activation_choices, bias_range, max_node_id, verbose):
+    for nid in node_ids:  # scale with number of nodes
+        if random() < prob and connections:
+            c = choice(connections)
+            connections.remove(c)
+            new_act = choice(activation_choices)
+            new_bias = uniform(*bias_range)
+            new_node = Node(max_node_id, activation=new_act, bias=new_bias)
+            nodes.append(new_node)
+            connections.append(Connection(c.in_node, new_node.id, 1.0))
+            connections.append(Connection(new_node.id, c.out_node, c.weight))
+            if verbose: print(f"✨ Split connection {c.in_node}->{c.out_node} with new node {new_node.id} ({new_act}) bias={new_bias:.3f}")
+            max_node_id += 1
+            break
+    return nodes, connections, max_node_id
+
+
+def delete_hidden_node(nodes, connections, hidden_ids, prob, verbose):
+    for nid in hidden_ids:  # scale with number of hidden nodes
+        if random() < prob:
+            nodes = [n for n in nodes if n.id != nid]
+            removed_conns = [c for c in connections if c.in_node == nid or c.out_node == nid]
+            connections = [c for c in connections if c.in_node != nid and c.out_node != nid]
+            if verbose: print(f"🗑️ Removed node {nid} and {len(removed_conns)} connected links")
+            break
+    return nodes, connections

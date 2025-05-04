@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import timedelta
 
-from NEAT.utils import create_random_net
+from NEAT.utils import create_random_net, random_seed
 from agents.environment import Environment
 from agents.constants import *
 from agents.agent import Agent
@@ -28,18 +28,14 @@ class Info():
     clock: pygame.time.Clock
 
 
-def random_seed(seed):
-    random.seed(seed)
-    np.random.seed(seed)
-
-
 def setup_env():
     env = Environment()
 
     for _ in range(NUM_AGENTS_INITIAL):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
         net = create_random_net(
-            n_inputs=N_INPUTS, n_outputs=2, n_hidden=0, n_connections=0,  # ex nihilo
+            n_inputs=N_INPUTS, n_outputs=2, n_hidden=10, n_connections=20,  # ex nihilo
+            # n_inputs=N_INPUTS, n_outputs=2, n_hidden=0, n_connections=0,  # ex nihilo
             output_activation_choices=["tanh"],  # range: (-1, 1)
             input_names=INPUT_NAMES, output_names=OUTPUT_NAMES,
         )

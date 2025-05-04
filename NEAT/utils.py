@@ -1,10 +1,46 @@
+from copy import deepcopy
+from random import random, choice, uniform
 from collections import defaultdict, deque
 
 import numpy as np
-from copy import deepcopy
-from random import random, choice, uniform
 
 from NEAT.NEAT import Node, Connection, NEATNetwork, act_funcs
+
+
+def random_seed(seed):
+    import random
+    import numpy as np
+
+    random.seed(seed)
+    np.random.seed(seed)
+
+
+def prune_unused_nodes(nodes, connections, verbose=False):
+    node_ids = [node.id for node in nodes]
+    input_ids = [node.id for node in nodes if node.is_input]
+    output_ids = [node.id for node in nodes if node.is_output]
+
+    reachable = reachable_from_inputs(nodes, connections, input_ids)
+    contributing = reaches_outputs(nodes, connections, output_ids)
+    active_nodes = reachable & contributing
+
+    post_pruning_nodes = [
+        n for n in nodes if (
+            n.id in active_nodes or
+            n.is_input or
+            n.is_output
+        )
+    ]
+    post_pruning_ids = {n.id for n in post_pruning_nodes}
+    if post_pruning_ids != set(node_ids):
+        post_pruning_connections = [
+            c for c in connections if c.in_node in post_pruning_ids and c.out_node in post_pruning_ids
+        ]
+        if verbose:
+            print(f"🧹 Pruned {len(nodes) - len(post_pruning_nodes)} nodes and {len(connections) - len(post_pruning_connections)} connections")
+        nodes = post_pruning_nodes
+        connections = post_pruning_connections
+    return nodes, connections
 
 
 def create_random_net(
@@ -69,6 +105,7 @@ def create_random_net(
         attempts += 1
 
     conn_objs = [Connection(src, dst, w) for src, dst, w in connections]
+    nodes, conn_objs = prune_unused_nodes(nodes, conn_objs)
     return NEATNetwork(nodes, conn_objs)
 
 
@@ -106,6 +143,7 @@ def reachable_from_inputs(nodes, connections, input_ids):
                 stack.append(neighbor)
     return visited
 
+
 def reaches_outputs(nodes, connections, output_ids):
     rev_adj = defaultdict(list)
     for c in connections:
@@ -119,6 +157,86 @@ def reaches_outputs(nodes, connections, output_ids):
                 visited.add(neighbor)
                 stack.append(neighbor)
     return visited
+
+
+def duplicate_subnet_with_scaled_outputs(nodes, connections, input_ids, output_ids, node_pick_prob=0.5, max_subnet_size=-1, verbose=False):
+    node_map = {n.id: n for n in nodes}
+    con_map = {}  # maps from a node to its outgoing connections
+    for c in connections:
+        con_map.setdefault(c.in_node, []).append(c)
+
+    # Pick a random non-input/output node as seed
+    hidden_ids = [n.id for n in nodes if n.id not in input_ids + output_ids]
+    if not hidden_ids:
+        return nodes, connections
+
+    seed_id = choice(hidden_ids)
+    subnet_ids = set([seed_id])
+    frontier = [seed_id]
+
+    # Recursively grow the subnet downstream
+    while frontier:
+        current = frontier.pop()
+        for c in con_map.get(current, []):
+            if max_subnet_size > 0 and len(subnet_ids) >= max_subnet_size:
+                break
+
+            if c.out_node in output_ids:
+                continue
+
+            if c.out_node not in subnet_ids and random() < node_pick_prob:
+                subnet_ids.add(c.out_node)
+                frontier.append(c.out_node)
+
+    if not subnet_ids:
+        return nodes, connections
+
+    if verbose:
+        print(f"🔀 Selected subnet for duplication: {sorted(subnet_ids)}")
+
+    # Duplicate nodes
+    max_node_id = max(n.id for n in nodes)
+    id_map = {}
+    new_nodes = []
+    for nid in subnet_ids:
+        max_node_id += 1
+        new_id = max_node_id
+        id_map[nid] = new_id
+
+        orig = node_map[nid]
+        new_nodes.append(
+            Node(new_id, activation=orig.activation_name, bias=orig.bias)
+        )
+        if verbose:
+            print(f"🆕 Duplicated node {nid} -> {new_id}")
+
+    new_connections = []
+    for c in connections:
+        # Duplicate intra-subnet connections
+        if c.in_node in subnet_ids and c.out_node in subnet_ids:
+            new_connections.append(
+                Connection(id_map[c.in_node], id_map[c.out_node], c.weight)
+            )
+        # Duplicate input connections into the subnet
+        elif c.out_node in subnet_ids and c.in_node not in subnet_ids:
+            new_connections.append(
+                Connection(c.in_node, id_map[c.out_node], c.weight)
+            )
+        # Duplicate and scale output connections
+        elif c.in_node in subnet_ids and c.out_node not in subnet_ids:
+            halved_weight = c.weight * 0.5  # half the outgoing weight to maintain the same activations of the whole net
+            c.weight = halved_weight  # also adapt the orginal connection
+            new_connections.append(
+                Connection(id_map[c.in_node], c.out_node, halved_weight)
+            )
+        else:
+            continue
+
+    if verbose:
+        print(f"Add a subnet of {len(new_nodes)} nodes and {len(new_connections)} connections")
+
+    return nodes + new_nodes, connections + new_connections
+
 
 
 def mutate_net(
@@ -145,6 +263,10 @@ def mutate_net(
     add_node_prob=0.1,
     del_node_prob=0.1,
     add_conn_attempts=30,
+
+    duplication_prob=0.05,
+    node_pick_prob=0.5,
+    max_subnet_size=-1,
 
     activation_choices=None,
     allow_recurrent=False,
@@ -213,7 +335,8 @@ def mutate_net(
             dst = choice(non_input_ids)
             if src != dst and (src, dst) not in con_set:
                 if allow_recurrent or not creates_cycle(connections, src, dst):
-                    w = uniform(*weight_range)
+                    # w = uniform(*weight_range)
+                    w = np.random.normal(0, perturb_bias_std)
                     connections.append(Connection(src, dst, w))
                     con_set.add((src, dst))
                     if verbose:
@@ -247,27 +370,15 @@ def mutate_net(
         connections = [c for c in connections if c.in_node != nid and c.out_node != nid]
         if verbose: print(f"🗑️ Removed node {nid} and {len(removed_conns)} connected links")
 
+    # duplicate random subnet
+    if random() < duplication_prob:
+        nodes, connections = duplicate_subnet_with_scaled_outputs(
+            nodes, connections, input_ids, output_ids,
+            node_pick_prob=node_pick_prob, max_subnet_size=max_subnet_size, verbose=verbose
+        )
+
     # Prune unreachable or unused nodes
     if prune_unused:
-        reachable = reachable_from_inputs(nodes, connections, input_ids)
-        contributing = reaches_outputs(nodes, connections, output_ids)
-        active_nodes = reachable & contributing
-
-        post_pruning_nodes = [
-            n for n in nodes if (
-                n.id in active_nodes or
-                n.is_input or
-                n.is_output
-            )
-        ]
-        post_pruning_ids = {n.id for n in post_pruning_nodes}
-        if post_pruning_ids != set(node_ids):
-            post_pruning_connections = [
-                c for c in connections if c.in_node in post_pruning_ids and c.out_node in post_pruning_ids
-            ]
-            if verbose:
-                print(f"🧹 Pruned {len(nodes) - len(post_pruning_nodes)} nodes and {len(connections) - len(post_pruning_connections)} connections")
-            nodes = post_pruning_nodes
-            connections = post_pruning_connections
+        nodes, connections = prune_unused_nodes(nodes, connections)
 
     return NEATNetwork(nodes, connections)

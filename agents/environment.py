@@ -73,7 +73,7 @@ class Environment:
 
             agent.update(self.space, dt)
 
-            if agent.energy >= agent.reproduction_energy_threshold or agent.energy >= MAX_ENERGY:
+            if agent.energy >= agent.reproduction_energy_threshold:
                 child_agent = agent.reproduce()
                 new_agents.append(child_agent)
 

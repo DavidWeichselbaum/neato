@@ -77,6 +77,7 @@ class Agent:
         # energy costs
         self.energy -= ENERGY_DECAY * dt
         self.energy -= thrust ** 2 * ENERGY_THRUST * dt
+        self.energy = min(self.energy, MAX_ENERGY)
 
         # should only spin through net control
         self.body.angular_velocity = 0

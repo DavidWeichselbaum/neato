@@ -6,6 +6,7 @@ import pygame
 import numpy as np
 
 from agents.constants import *
+from NEAT.utils import mutate_net
 
 
 class Agent:
@@ -113,6 +114,18 @@ class Agent:
 
     def get_random_input(self):
         return [np.random.normal()]
+
+    def reproduce(self):
+        child_net = mutate_net(self.net)
+
+        self.energy = MAX_ENERGY * 0.5
+        child_energy = MAX_ENERGY * 0.5
+
+        facing = pymunk.Vec2d(math.cos(self.body.angle), math.sin(self.body.angle))
+        child_angle = (self.body.angle + math.pi) % (2 * math.pi)
+        spawn_position = self.body.position - facing * (AGENT_RADIUS * 4)
+
+        return Agent(spawn_position, child_net, child_energy, child_angle)
 
     def draw_annotation(self, screen, env):
         # Draw selected agent's sensors and HUD

@@ -1,4 +1,5 @@
 import math
+from copy import deepcopy
 from collections import defaultdict, deque
 from pprint import pformat
 
@@ -151,6 +152,9 @@ class NEATNetwork:
 
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
+
+    def copy(self):
+        return deepcopy(self)
 
     def detect_cycles(self):
         adj = defaultdict(list)

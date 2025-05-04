@@ -34,8 +34,7 @@ def setup_env():
     for _ in range(NUM_AGENTS_INITIAL):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
         net = create_random_net(
-            n_inputs=N_INPUTS, n_outputs=2, n_hidden=10, n_connections=20,  # ex nihilo
-            # n_inputs=N_INPUTS, n_outputs=2, n_hidden=0, n_connections=0,  # ex nihilo
+            n_inputs=N_INPUTS, n_outputs=2, n_hidden=0, n_connections=0,  # ex nihilo
             output_activation_choices=["tanh"],  # range: (-1, 1)
             input_names=INPUT_NAMES, output_names=OUTPUT_NAMES,
         )

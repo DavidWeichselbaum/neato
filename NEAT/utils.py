@@ -242,7 +242,7 @@ def duplicate_subnet_with_scaled_outputs(nodes, connections, input_ids, output_i
 def mutate_net(
     net,
 
-    global_mutation_prob=5.0,
+    global_mutation_prob=0.5,
 
     mutate_weight_prob=0.9,
     perturb_prob=0.8,
@@ -273,14 +273,14 @@ def mutate_net(
     prune_unused=True,
     verbose=False,
 ):
-    if random() > global_mutation_prob:
+    if random() < global_mutation_prob:
         return net.copy()
-
-    if activation_choices is None:
-        activation_choices = list(act_funcs.keys())
 
     nodes = deepcopy(net.nodes)
     connections = deepcopy(net.connections)
+
+    if activation_choices is None:
+        activation_choices = list(act_funcs.keys())
 
     node_ids = [n.id for n in nodes]
     max_node_id = max(node_ids) + 1

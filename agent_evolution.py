@@ -34,8 +34,9 @@ def setup_env():
     for _ in range(NUM_AGENTS_INITIAL):
         start_position = (random.randint(100, WIDTH - 100), random.randint(100, HEIGHT - 100))
         net = create_random_net(
-            n_inputs=N_INPUTS, n_outputs=2, n_hidden=0, n_connections=0,  # ex nihilo
-            output_activation_choices=["tanh"],  # range: (-1, 1)
+            n_inputs=N_INPUTS, n_outputs=N_OUTPUTS,
+            n_hidden=0, n_connections=0,  # ex nihilo
+            output_activations=["tanh", "tanh", "sigmoid", "sigmoid"],
             input_names=INPUT_NAMES, output_names=OUTPUT_NAMES,
         )
         energy = MAX_ENERGY * 0.5

@@ -71,11 +71,11 @@ class Environment:
                 dead_agents.append(agent)
                 continue
 
-            if agent.energy >= MAX_ENERGY:
+            agent.update(self.space, dt)
+
+            if agent.energy >= agent.reproduction_energy_threshold or agent.energy >= MAX_ENERGY:
                 child_agent = agent.reproduce()
                 new_agents.append(child_agent)
-
-            agent.update(self.space, dt)
 
         for agent in dead_agents:
             self.remove_agent(agent)

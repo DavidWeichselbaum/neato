@@ -44,10 +44,18 @@ def prune_unused_nodes(nodes, connections, verbose=False):
 
 
 def create_random_net(
-    n_inputs, n_outputs, n_hidden, n_connections,
-    input_activation_choices=["linear"], activation_choices=None, output_activation_choices=["linear"],
-    weight_range=(-2.0, 2.0), bias_range=(-1.0, 1.0), allow_recurrent=False,
-    input_names=None, output_names=None,
+    n_inputs,
+    n_outputs,
+    n_hidden,
+    n_connections,
+    input_activations="linear",
+    activation_choices=None,
+    output_activations="linear",
+    weight_range=(-2.0, 2.0),
+    bias_range=(-1.0, 1.0),
+    allow_recurrent=False,
+    input_names=None,
+    output_names=None,
 ):
     if input_names: assert len(input_names) == n_inputs
     if output_names: assert len(output_names) == n_outputs
@@ -61,7 +69,11 @@ def create_random_net(
     # Input nodes
     input_nodes = []
     for i in range(n_inputs):
-        act = choice(input_activation_choices)
+        if isinstance(input_activations, str):
+            act = input_activations
+        else:
+            act = input_activations[i]
+
         name = input_names[i] if input_names else None
         nodes.append(Node(node_id, is_input=True, activation=act, name=name, bias=0.0))  # no bias for input
         input_nodes.append(node_id)
@@ -79,7 +91,11 @@ def create_random_net(
     # Output nodes
     output_nodes = []
     for i in range(n_outputs):
-        act = choice(output_activation_choices)
+        if isinstance(output_activations, str):
+            act = output_activations
+        else:
+            act = output_activations[i]
+
         name = output_names[i] if output_names else None
         bias = uniform(*bias_range)
         nodes.append(Node(node_id, is_output=True, activation=act, name=name, bias=bias))

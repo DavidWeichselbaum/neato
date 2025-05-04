@@ -29,6 +29,8 @@ class Agent:
         self.counter = 0
         self.last_inputs = []
         self.last_outputs = []
+        self.reproduction_energy_threshold = MAX_ENERGY * 0.5
+        self.reproduction_energy_ratio = 0.5
 
         self.possessed = False
         self.possession_outputs = [0.0, 0.0]
@@ -58,10 +60,13 @@ class Agent:
                 outputs = self.possession_outputs
                 self.energy = MAX_ENERGY / 2
 
-            thrust = outputs[0]
+            thrust, turn, repr_threshold, repr_ratio = outputs[0], outputs[1], outputs[2], outputs[3]
             thrust = min(1.0, max(-1.0, thrust))
-            turn = outputs[1]
             turn = min(1.0, max(-1.0, turn))
+            reproduction_energy_threshold = min(1.0, max(0, repr_threshold))
+            reproduction_energy_ratio = min(1.0, max(0, repr_ratio))
+            self.reproduction_energy_threshold = reproduction_energy_threshold * MAX_ENERGY
+            self.reproduction_energy_ratio = reproduction_energy_ratio
 
             self.body.angle += turn * TURN_SPEED * dt
 
@@ -118,8 +123,8 @@ class Agent:
     def reproduce(self):
         child_net = mutate_net(self.net)
 
-        self.energy = MAX_ENERGY * 0.5
-        child_energy = MAX_ENERGY * 0.5
+        child_energy = self.energy * self.reproduction_energy_ratio
+        self.energy -= child_energy
 
         facing = pymunk.Vec2d(math.cos(self.body.angle), math.sin(self.body.angle))
         child_angle = (self.body.angle + math.pi) % (2 * math.pi)

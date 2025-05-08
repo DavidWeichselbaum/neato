@@ -272,10 +272,10 @@ def mutate_net(
 
     activation_change_prob=0.1,
 
-    add_conn_prob=0.5,
-    del_conn_prob=0.5,
-    add_node_prob=0.5,
-    del_node_prob=0.5,
+    add_conn_prob=0.1,
+    del_conn_prob=0.1,
+    add_node_prob=0.05,
+    del_node_prob=0.05,
     add_conn_attempts=30,
 
     duplication_prob=0.05,

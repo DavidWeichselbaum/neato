@@ -145,13 +145,12 @@ class Agent:
     def reproduce(self):
         child_net = mutate_net(self.net)
 
+        self.energy -= ENERGY_REPRODUCTION
         child_energy = self.energy * self.reproduction_energy_ratio
         self.energy -= child_energy
 
-        facing = self.get_facing_vector()
-        child_angle = (self.body.angle + math.pi) % (2 * math.pi)
-        spawn_position = self.body.position - facing * (AGENT_RADIUS * 4)
-
+        child_angle = self.body.angle
+        spawn_position = self.body.position
         return Agent(spawn_position, child_net, child_energy, child_angle)
 
     def draw_annotation(self, screen, env):

@@ -11,8 +11,8 @@ class Wall:
         self.sight_color = WALL_SIGHT_COLOR
 
         self.shape = pymunk.Segment(space.static_body, start, end, WALL_THICKNESS)
-        self.shape.elasticity = 0.8
-        self.shape.friction = 0.8
+        self.shape.elasticity = 0.01
+        self.shape.friction = 0.999
         self.shape.owner = self
 
         space.add(self.shape)

@@ -100,7 +100,7 @@ class Environment:
         eaten = []
         for food in self.foods:
             if food.body.position.get_distance(agent.body.position) < AGENT_RADIUS + FOOD_RADIUS:
-                agent.energy += ENERGY_PER_FOOD
+                agent.energy += FOOD_ENERGY
                 agent.energy = min(agent.energy, MAX_ENERGY)
                 eaten.append(food)
         return eaten

@@ -90,6 +90,47 @@ def evaluate_network(conn_in, conn_out, conn_weight, node_func_ids, exec_order,
     return values[output_indices]
 
 
+@njit
+def evaluate_network_recurrent(conn_in, conn_out, conn_weight, node_func_ids,
+                                input_indices, input_vals, output_indices,
+                                bias_arr, prev_values):
+    n_nodes = len(node_func_ids)
+    n_conns = len(conn_out)
+    new_values = np.zeros(n_nodes)
+
+    for i in range(len(input_indices)):
+        prev_values[input_indices[i]] = input_vals[i]
+
+    for idx in range(n_nodes):
+        total = 0.0
+        for j in range(n_conns):
+            if conn_out[j] == idx:
+                src = conn_in[j]
+                total += prev_values[src] * conn_weight[j]
+
+        total += bias_arr[idx]
+
+        act_id = node_func_ids[idx]
+        if act_id == 0:
+            new_values[idx] = act_linear(total)
+        elif act_id == 1:
+            new_values[idx] = act_tanh(total)
+        elif act_id == 2:
+            new_values[idx] = act_sigmoid(total)
+        elif act_id == 3:
+            new_values[idx] = act_gaussian(total)
+        elif act_id == 4:
+            new_values[idx] = act_sine(total)
+        elif act_id == 5:
+            new_values[idx] = act_square(total)
+        elif act_id == 6:
+            new_values[idx] = act_softplus(total)
+        else:
+            raise ValueError
+
+    return new_values, new_values[output_indices]
+
+
 class Node:
     def __init__(self, node_id, is_input=False, is_output=False, activation='linear', name=None, bias=0.0):
         self.id = node_id
@@ -121,22 +162,20 @@ class Connection:
 
 
 class NEATNetwork:
-    def __init__(self, nodes, connections):
+    def __init__(self, nodes, connections, recurrent=False):
         self.nodes = nodes
         self.connections = connections
+        self.recurrent = recurrent
 
         self.node_ids = [n.id for n in nodes]
-        if self.detect_cycles():
+        if not recurrent and self.detect_cycles():
             raise ValueError("Network is not a directed acyclic graph")
 
-        # for activation
-        self.exec_order, self.layer_order = self.topo_sort()
-        self.id_to_layer = {nid: layer_idx for layer_idx, layer in enumerate(self.layer_order) for nid in layer}
+        self.node_map = {n.id: n for n in nodes}
         self.node_index = {nid: i for i, nid in enumerate(self.node_ids)}
         self.conn_in = np.array([self.node_index[c.in_node] for c in self.connections], dtype=np.int32)
         self.conn_out = np.array([self.node_index[c.out_node] for c in self.connections], dtype=np.int32)
         self.conn_weight = np.array([c.weight for c in self.connections], dtype=np.float32)
-        self.node_map = {n.id: n for n in nodes}
         self.bias_arr = np.array([self.node_map[nid].bias for nid in self.node_ids], dtype=np.float32)
         self.input_ids = [n.id for n in nodes if n.is_input]
         self.output_ids = [n.id for n in nodes if n.is_output]
@@ -146,9 +185,16 @@ class NEATNetwork:
             for nid in self.node_ids
         ])
 
-        self.exec_order_arr = np.array([self.node_index[nid] for nid in self.exec_order], dtype=np.int32)
         self.input_idx_arr = np.array([self.node_index[nid] for nid in self.input_ids], dtype=np.int32)
         self.output_idx_arr = np.array([self.node_index[nid] for nid in self.output_ids], dtype=np.int32)
+
+        if not recurrent:
+            self.exec_order, self.layer_order = self.topo_sort()
+            self.id_to_layer = {nid: layer_idx for layer_idx, layer in enumerate(self.layer_order) for nid in layer}
+            self.exec_order_arr = np.array([self.node_index[nid] for nid in self.exec_order], dtype=np.int32)
+        else:
+            self.exec_order = self.layer_order = self.id_to_layer = self.exec_order_arr = None
+            self.node_values = np.zeros(len(self.node_ids), dtype=np.float32)
 
     def __repr__(self):
         return pformat(vars(self), indent=4, width=1)
@@ -207,17 +253,31 @@ class NEATNetwork:
         return topo_order, sorted_layers
 
     def activate(self, inputs):
-        return evaluate_network(
-            self.conn_in,
-            self.conn_out,
-            self.conn_weight,
-            self.node_func_ids,
-            self.exec_order_arr,
-            self.input_idx_arr,
-            np.array(inputs),
-            self.output_idx_arr,
-            self.bias_arr
-        )
+        if self.recurrent:
+            self.node_values, outputs = evaluate_network_recurrent(
+                self.conn_in,
+                self.conn_out,
+                self.conn_weight,
+                self.node_func_ids,
+                self.input_idx_arr,
+                np.array(inputs, dtype=np.float32),
+                self.output_idx_arr,
+                self.bias_arr,
+                self.node_values
+            )
+            return outputs
+        else:
+            return evaluate_network(
+                self.conn_in,
+                self.conn_out,
+                self.conn_weight,
+                self.node_func_ids,
+                self.exec_order_arr,
+                self.input_idx_arr,
+                np.array(inputs, dtype=np.float32),
+                self.output_idx_arr,
+                self.bias_arr
+            )
 
     def visualize(self):
         fig, ax = plt.subplots(figsize=(6, 6))
@@ -230,6 +290,8 @@ class NEATNetwork:
         positions = {}
         node_colors = []
 
+        use_layers = not self.recurrent and self.layer_order is not None
+
         for nid in self.node_ids:
             node = self.node_map[nid]
             G.add_node(nid)
@@ -241,15 +303,17 @@ class NEATNetwork:
             label += f"\n{node.activation_name} ({bias_str})"
             node_labels[nid] = label
 
-            # Layout
-            level = self.id_to_layer.get(nid, 0)
-            level_ids = self.layer_order[level]
-            n_nodes_level = len(level_ids)
-            order_level = level_ids.index(nid) if nid in level_ids else 0
-            position = (level, 1 - 1 / max(n_nodes_level, 1) * order_level)
+            if use_layers:
+                level = self.id_to_layer.get(nid, 0)
+                level_ids = self.layer_order[level]
+                n_nodes_level = len(level_ids)
+                order_level = level_ids.index(nid) if nid in level_ids else 0
+                position = (level, 1 - 1 / max(n_nodes_level, 1) * order_level)
+            else:
+                angle = 2 * math.pi * self.node_ids.index(nid) / len(self.node_ids)
+                position = (math.cos(angle), math.sin(angle))
             positions[nid] = position
 
-            # Color
             if node.is_input:
                 node_colors.append('springgreen')
             elif node.is_output:

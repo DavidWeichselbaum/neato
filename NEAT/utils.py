@@ -122,7 +122,7 @@ def create_random_net(
 
     conn_objs = [Connection(src, dst, w) for src, dst, w in connections]
     nodes, conn_objs = prune_unused_nodes(nodes, conn_objs)
-    return NEATNetwork(nodes, conn_objs)
+    return NEATNetwork(nodes, conn_objs, allow_recurrent)
 
 
 def creates_cycle(connections, src, dst):
@@ -283,10 +283,10 @@ def mutate_net(
     max_subnet_size=-1,
 
     activation_choices=None,
-    allow_recurrent=False,
     prune_unused=True,
     verbose=False
 ):
+    allow_recurrent = net.recurrent
 
     if random() < global_mutation_prob:
         return net.copy()
@@ -337,7 +337,7 @@ def mutate_net(
     if prune_unused:
         nodes, connections = prune_unused_nodes(nodes, connections)
 
-    return NEATNetwork(nodes, connections)
+    return NEATNetwork(nodes, connections, allow_recurrent)
 
 
 def mutate_connection_weights(connections, mutate_prob, perturb_prob, std, reset_prob, weight_range, verbose):
